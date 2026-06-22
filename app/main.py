@@ -63,9 +63,9 @@ if platform.system() != "Windows":
     )
 else:
     try:
-        import pythoncom  # type: ignore[import]
-        import pywintypes  # type: ignore[import]
-        import win32com.client  # type: ignore[import]
+        import pythoncom  
+        import pywintypes  
+        import win32com.client  
     except Exception as exc:
         logger.exception("pywin32 initialization failed")
         LIVE_CONNECT_UNAVAILABLE_REASON = (

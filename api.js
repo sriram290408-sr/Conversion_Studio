@@ -11,7 +11,7 @@ const LOCAL_API_URL = "http://127.0.0.1:8000";
 * Online FastAPI backend.
 */
 const ONLINE_API_URL =
-    "";
+    "https://conversion-studio-five.vercel.app/api";
 
 
 // ─── 2. Environment detection ───────────────────────────────────────────────
