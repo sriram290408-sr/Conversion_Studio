@@ -134,7 +134,6 @@ LOCAL_CORS_ORIGINS = [
 
 DEFAULT_DEPLOYED_CORS_ORIGINS = [
     "https://conversion-studio-wj1p.vercel.app",
-    "https://conversion-studio-rho.vercel.app",
 ]
 
 ENV_DEPLOYED_CORS_ORIGINS = [
@@ -654,11 +653,17 @@ async def process_upload_file(
 # ── Routes ───────────────────────────────────────────────────────────────────
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 def read_root():
-    index_path = get_index_html_path()
-    with open(index_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    return {
+        "status": "running",
+        "app": "Conversion Studio API",
+        "message": "Backend API is running successfully.",
+        "frontend": "https://conversion-studio-wj1p.vercel.app",
+        "health": "/api/health",
+        "docs": "/docs",
+        "upload": "/api/upload",
+    }
 
 
 @app.get("/api")
@@ -666,6 +671,7 @@ def api_root():
     return {
         "status": "running",
         "app": "Power BI PBIX to Excel Converter",
+        "frontend": "https://conversion-studio-wj1p.vercel.app",
         "upload_endpoints": ["/upload", "/api/upload"],
         "health_endpoints": ["/health", "/api/health"],
         "cors_origins": ALLOWED_ORIGINS,
