@@ -121,11 +121,26 @@ TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 MAX_UPLOAD_SIZE_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", str(100 * 1024 * 1024)))
 TEMP_EXPIRY_SECONDS = int(os.getenv("TEMP_EXPIRY_SECONDS", str(60 * 60)))
-CORS_ORIGINS = os.getenv(
-    "CORS_ORIGINS",
-    "http://127.0.0.1:8000,http://localhost:8000,http://127.0.0.1:5500,http://localhost:5500",
+# Local origins are always supported. Add hosted frontend origins through the
+# CORS_ORIGINS environment variable as a comma-separated list.
+LOCAL_CORS_ORIGINS = [
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+]
+
+DEPLOYED_CORS_ORIGINS = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv("CORS_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
+ALLOWED_ORIGINS = list(
+    dict.fromkeys(
+        [origin.rstrip("/") for origin in LOCAL_CORS_ORIGINS] + DEPLOYED_CORS_ORIGINS
+    )
 )
-ALLOWED_ORIGINS = [o.strip() for o in CORS_ORIGINS.split(",") if o.strip()]
 
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -629,6 +644,9 @@ def health():
         "temp_dir": str(TEMP_DIR),
         "max_upload_size_bytes": MAX_UPLOAD_SIZE_BYTES,
         "cors_origins": ALLOWED_ORIGINS,
+        "platform": platform.system(),
+        "live_connect_available": LIVE_CONNECT_AVAILABLE,
+        "live_connect_unavailable_reason": LIVE_CONNECT_UNAVAILABLE_REASON,
     }
 
 
