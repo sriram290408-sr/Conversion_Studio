@@ -63,9 +63,9 @@ if platform.system() != "Windows":
     )
 else:
     try:
-        import pythoncom  
-        import pywintypes  
-        import win32com.client  
+        import pythoncom
+        import pywintypes
+        import win32com.client
     except Exception as exc:
         logger.exception("pywin32 initialization failed")
         LIVE_CONNECT_UNAVAILABLE_REASON = (
@@ -121,8 +121,10 @@ TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 MAX_UPLOAD_SIZE_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", str(100 * 1024 * 1024)))
 TEMP_EXPIRY_SECONDS = int(os.getenv("TEMP_EXPIRY_SECONDS", str(60 * 60)))
-# Local origins are always supported. Add hosted frontend origins through the
-# CORS_ORIGINS environment variable as a comma-separated list.
+# Local and hosted frontend origins.
+#
+# Add extra production/preview origins through:
+# CORS_ORIGINS=https://frontend-one.vercel.app,https://frontend-two.vercel.app
 LOCAL_CORS_ORIGINS = [
     "http://127.0.0.1:8000",
     "http://localhost:8000",
@@ -130,7 +132,12 @@ LOCAL_CORS_ORIGINS = [
     "http://localhost:5500",
 ]
 
-DEPLOYED_CORS_ORIGINS = [
+DEFAULT_DEPLOYED_CORS_ORIGINS = [
+    "https://conversion-studio-wj1p.vercel.app",
+    "https://conversion-studio-rho.vercel.app",
+]
+
+ENV_DEPLOYED_CORS_ORIGINS = [
     origin.strip().rstrip("/")
     for origin in os.getenv("CORS_ORIGINS", "").split(",")
     if origin.strip()
@@ -138,9 +145,20 @@ DEPLOYED_CORS_ORIGINS = [
 
 ALLOWED_ORIGINS = list(
     dict.fromkeys(
-        [origin.rstrip("/") for origin in LOCAL_CORS_ORIGINS] + DEPLOYED_CORS_ORIGINS
+        [
+            origin.rstrip("/")
+            for origin in (
+                LOCAL_CORS_ORIGINS
+                + DEFAULT_DEPLOYED_CORS_ORIGINS
+                + ENV_DEPLOYED_CORS_ORIGINS
+            )
+        ]
     )
 )
+
+# Allows Vercel preview deployments such as:
+# https://conversion-studio-abc123.vercel.app
+VERCEL_ORIGIN_REGEX = r"^https://conversion-studio(?:-[a-zA-Z0-9-]+)?\.vercel\.app$"
 
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -148,9 +166,16 @@ if STATIC_DIR.exists():
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=VERCEL_ORIGIN_REGEX,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=[
+        "Content-Disposition",
+        "X-PDF-Page-Count",
+        "X-PDF-File-Size",
+    ],
+    max_age=86400,
 )
 
 
@@ -636,6 +661,19 @@ def read_root():
         return HTMLResponse(content=f.read())
 
 
+@app.get("/api")
+def api_root():
+    return {
+        "status": "running",
+        "app": "Power BI PBIX to Excel Converter",
+        "upload_endpoints": ["/upload", "/api/upload"],
+        "health_endpoints": ["/health", "/api/health"],
+        "cors_origins": ALLOWED_ORIGINS,
+        "cors_origin_regex": VERCEL_ORIGIN_REGEX,
+    }
+
+
+@app.get("/api/health")
 @app.get("/health")
 def health():
     return {
@@ -650,11 +688,13 @@ def health():
     }
 
 
+@app.get("/api/hf-status")
 @app.get("/hf-status")
 def hf_status():
     return check_huggingface_connectivity()
 
 
+@app.post("/api/upload")
 @app.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
@@ -665,6 +705,7 @@ async def upload_file(
     return await process_upload_file(file, screenshot, base_template, tmdl_metadata)
 
 
+@app.post("/api/upload-metadata")
 @app.post("/upload-metadata")
 async def upload_metadata(
     file: UploadFile = File(...),
@@ -675,6 +716,7 @@ async def upload_metadata(
     return await process_upload_file(file, screenshot, base_template, tmdl_metadata)
 
 
+@app.post("/api/upload-stream")
 @app.post("/upload-stream")
 async def upload_stream(
     file: UploadFile = File(...),
@@ -685,6 +727,7 @@ async def upload_stream(
     return await process_upload_file(file, screenshot, base_template, tmdl_metadata)
 
 
+@app.get("/api/upload")
 @app.get("/upload")
 def upload_get_help():
     return JSONResponse(
@@ -695,6 +738,7 @@ def upload_get_help():
     )
 
 
+@app.get("/api/upload-metadata")
 @app.get("/upload-metadata")
 def upload_metadata_get_help():
     return JSONResponse(
@@ -705,6 +749,7 @@ def upload_metadata_get_help():
     )
 
 
+@app.get("/api/upload-stream")
 @app.get("/upload-stream")
 def upload_stream_get_help():
     return JSONResponse(
@@ -715,6 +760,7 @@ def upload_stream_get_help():
     )
 
 
+@app.get("/api/download/{session_id}")
 @app.get("/download/{session_id}")
 def download_excel(session_id: str):
     safe_session_id = os.path.basename(session_id)
@@ -744,6 +790,7 @@ def download_excel(session_id: str):
     )
 
 
+@app.get("/api/download-preview/{session_id}")
 @app.get("/download-preview/{session_id}")
 def download_preview_pdf(session_id: str):
     safe_session_id = os.path.basename(session_id)
@@ -775,6 +822,7 @@ def download_preview_pdf(session_id: str):
     )
 
 
+@app.get("/api/download-json/{session_id}")
 @app.get("/download-json/{session_id}")
 def download_json(session_id: str):
     safe_session_id = os.path.basename(session_id)
@@ -819,6 +867,7 @@ def _require_live_connect():
         raise HTTPException(status_code=503, detail=detail)
 
 
+@app.post("/api/live-connect/start")
 @app.post("/live-connect/start")
 def live_connect_start(body: dict = Body(default={})):
     """Launch Excel visibly and wait for the user to connect a Power BI model.
@@ -926,6 +975,7 @@ def live_connect_start(body: dict = Body(default={})):
 _LIVE_SESSION_MAP: dict = {}
 
 
+@app.get("/api/live-connect/{session_id}/status")
 @app.get("/live-connect/{session_id}/status")
 def live_connect_status(session_id: str):
     """Return the current state and progress counters for a live-connect session."""
@@ -937,6 +987,7 @@ def live_connect_status(session_id: str):
     return JSONResponse(session.to_status_dict())
 
 
+@app.post("/api/live-connect/{session_id}/continue")
 @app.post("/live-connect/{session_id}/continue")
 def live_connect_continue(session_id: str):
     """User clicked 'Connection Completed'.
@@ -999,6 +1050,7 @@ def live_connect_continue(session_id: str):
     )
 
 
+@app.post("/api/live-connect/{session_id}/cancel")
 @app.post("/live-connect/{session_id}/cancel")
 def live_connect_cancel(session_id: str):
     """Cancel a live-connect session and close only its Excel instance."""
@@ -1010,6 +1062,7 @@ def live_connect_cancel(session_id: str):
     return JSONResponse({"session_id": safe_id, "state": "cancelled"})
 
 
+@app.get("/api/live-connect/{session_id}/report")
 @app.get("/live-connect/{session_id}/report")
 def live_connect_report(session_id: str):
     """Return the full JSON conversion report for a completed live session."""
@@ -1042,6 +1095,7 @@ def live_connect_report(session_id: str):
     )
 
 
+@app.get("/api/live-connect/{session_id}/download")
 @app.get("/live-connect/{session_id}/download")
 def download_live_excel(session_id: str):
     """Download the live-connected Excel workbook for a completed session."""
@@ -1073,6 +1127,7 @@ def download_live_excel(session_id: str):
 
 
 # Keep legacy endpoint for backwards compatibility
+@app.get("/api/download-live/{session_id}")
 @app.get("/download-live/{session_id}")
 def download_live_excel_legacy(session_id: str):
     """Legacy download endpoint — redirects to /live-connect/{id}/download."""
