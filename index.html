@@ -1,0 +1,3196 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Conversion Studio · PBIX → XLSX</title>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,300&family=DM+Sans:wght@300;400;500;600&display=swap"
+    rel="stylesheet" />
+
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --ink: #0c0e14;
+      --ink2: #13161f;
+      --ink3: #1a1e2a;
+      --ink4: #222736;
+      --line: #2a3045;
+      --line2: #333d55;
+      --gold: #c9a84c;
+      --gold2: #e8cc7a;
+      --gold-dim: rgba(201, 168, 76, .12);
+      --gold-mid: rgba(201, 168, 76, .22);
+      --teal: #3ecfb2;
+      --teal-dim: rgba(62, 207, 178, .10);
+      --rose: #e05c6a;
+      --rose-dim: rgba(224, 92, 106, .10);
+      --fog: #8a93aa;
+      --mist: #6b7491;
+      --pale: #e4e8f4;
+      --white: #f6f8ff;
+      --mono: 'DM Mono', monospace;
+      --serif: 'Fraunces', serif;
+      --sans: 'DM Sans', sans-serif;
+    }
+
+    html,
+    body,
+    #root {
+      min-height: 100%;
+    }
+
+    body {
+      font-family: var(--sans);
+      background: var(--ink);
+      color: var(--pale);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: .6;
+    }
+
+    button,
+    input {
+      font-family: inherit;
+    }
+
+    button {
+      -webkit-tap-highlight-color: transparent;
+      cursor: pointer;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      grid-template-rows: 58px minmax(0, 1fr);
+      height: 100vh;
+      min-height: 700px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .topbar {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      padding: 0 28px;
+      gap: 16px;
+      background: rgba(12, 14, 20, .96);
+      border-bottom: 1px solid var(--line);
+      position: relative;
+      z-index: 10;
+    }
+
+    .topbar::after {
+      content: '';
+      position: absolute;
+      inset: 0 0 -1px;
+      background: linear-gradient(90deg, rgba(201, 168, 76, .06), transparent 60%);
+      pointer-events: none;
+    }
+
+    .logo-mark {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      border: 1px solid rgba(201, 168, 76, .35);
+      background: linear-gradient(135deg, rgba(201, 168, 76, .18), rgba(201, 168, 76, .05));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .logo-svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    .topbar-brand {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .brand-name {
+      font-family: var(--serif);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--white);
+      letter-spacing: -0.01em;
+    }
+
+    .brand-tagline {
+      font-family: var(--mono);
+      font-size: 9.5px;
+      color: var(--mist);
+      letter-spacing: .04em;
+    }
+
+    .topbar-divider {
+      width: 1px;
+      height: 22px;
+      background: var(--line);
+      flex-shrink: 0;
+    }
+
+    .topbar-badge {
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: .08em;
+      color: var(--gold);
+      border: 1px solid rgba(201, 168, 76, .3);
+      background: var(--gold-dim);
+      padding: 4px 9px;
+      border-radius: 4px;
+    }
+
+    .topbar-spacer {
+      flex: 1;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border: 1px solid var(--line2);
+      border-radius: 6px;
+      background: var(--ink2);
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--fog);
+      letter-spacing: .02em;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--line2);
+      transition: background .3s, box-shadow .3s;
+    }
+
+    .status-dot.idle {
+      background: #ffffff;
+      box-shadow: 0 0 8px rgba(255, 255, 255, .55);
+    }
+
+    .status-dot.uploaded {
+      background: #f5c542;
+      box-shadow: 0 0 9px rgba(245, 197, 66, .75);
+    }
+
+    .status-dot.processing {
+      background: #f28c28;
+      box-shadow: 0 0 10px rgba(242, 140, 40, .82);
+      animation: blink 1.1s ease-in-out infinite;
+    }
+
+    .status-dot.success {
+      background: #32c875;
+      box-shadow: 0 0 9px rgba(50, 200, 117, .72);
+    }
+
+    .status-pill.idle {
+      color: #ffffff;
+    }
+
+    .status-pill.uploaded {
+      color: #f5c542;
+    }
+
+    .status-pill.processing {
+      color: #f28c28;
+    }
+
+    .status-pill.success {
+      color: #32c875;
+    }
+
+    .left {
+      background: var(--ink2);
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .left-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 20px 16px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--line2) transparent;
+    }
+
+    .card {
+      background: var(--ink3);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      transition: border-color .2s;
+      flex-shrink: 0;
+    }
+
+    .card:hover {
+      border-color: var(--line2);
+    }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(26, 30, 42, .7);
+      border-radius: 10px 10px 0 0;
+    }
+
+    .card-title {
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--mist);
+    }
+
+    .badge-req {
+      font-family: var(--mono);
+      font-size: 8px;
+      font-weight: 500;
+      letter-spacing: .06em;
+      color: var(--rose);
+      background: var(--rose-dim);
+      border: 1px solid rgba(224, 92, 106, .2);
+      border-radius: 3px;
+      padding: 2px 6px;
+    }
+
+    .badge-opt {
+      font-family: var(--mono);
+      font-size: 8px;
+      font-weight: 500;
+      letter-spacing: .06em;
+      color: var(--gold);
+      background: var(--gold-dim);
+      border: 1px solid rgba(201, 168, 76, .2);
+      border-radius: 3px;
+      padding: 2px 6px;
+    }
+
+    .card-body {
+      padding: 14px;
+    }
+
+    .drop-zone {
+      border: 1px dashed var(--line2);
+      border-radius: 8px;
+      padding: 22px 14px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s;
+      background: rgba(12, 14, 20, .5);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      min-height: 130px;
+      justify-content: center;
+      position: relative;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.over {
+      border-color: var(--gold);
+      background: var(--gold-dim);
+    }
+
+    .drop-zone.has {
+      border-color: rgba(62, 207, 178, .4);
+      background: var(--teal-dim);
+    }
+
+    .drop-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: rgba(201, 168, 76, .08);
+      border: 1px solid rgba(201, 168, 76, .2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .drop-zone.has .drop-icon {
+      background: rgba(62, 207, 178, .08);
+      border-color: rgba(62, 207, 178, .2);
+    }
+
+    .drop-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--pale);
+      line-height: 1.4;
+    }
+
+    .drop-sub {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--mist);
+    }
+
+    .drop-filename {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--teal);
+      background: rgba(12, 14, 20, .7);
+      border: 1px solid rgba(62, 207, 178, .2);
+      border-radius: 5px;
+      padding: 5px 8px;
+      max-width: 100%;
+      word-break: break-all;
+      margin-top: 2px;
+    }
+
+    .img-preview {
+      position: relative;
+      width: 100%;
+    }
+
+    .img-preview img {
+      width: 100%;
+      max-height: 130px;
+      object-fit: contain;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: var(--ink);
+      padding: 4px;
+      display: block;
+    }
+
+    .img-remove {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--rose);
+      border: none;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform .15s;
+    }
+
+    .img-remove:hover {
+      transform: scale(1.1);
+    }
+
+    .btn-run {
+      width: 100%;
+      min-height: 40px;
+      border-radius: 8px;
+      border: none;
+      background: linear-gradient(135deg, #c9a84c, #a88630);
+      color: #0c0e14;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .02em;
+      cursor: pointer;
+      transition: opacity .2s, transform .12s, box-shadow .2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 10px;
+      box-shadow: 0 6px 20px rgba(201, 168, 76, .2);
+    }
+
+    .btn-run:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 28px rgba(201, 168, 76, .3);
+    }
+
+    .btn-run:disabled {
+      opacity: .42;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-clear {
+      width: 100%;
+      min-height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--line2);
+      background: transparent;
+      color: var(--fog);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: border-color .2s, color .2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn-clear:hover:not(:disabled) {
+      border-color: var(--rose);
+      color: var(--rose);
+    }
+
+    .btn-clear:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+
+    .btn-dl {
+      width: 100%;
+      min-height: 40px;
+      border-radius: 8px;
+      border: 1px solid rgba(62, 207, 178, .3);
+      background: rgba(62, 207, 178, .07);
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .02em;
+      cursor: pointer;
+      transition: all .2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .btn-dl:hover:not(:disabled) {
+      background: rgba(62, 207, 178, .14);
+      border-color: rgba(62, 207, 178, .5);
+      transform: translateY(-1px);
+    }
+
+    .btn-dl:disabled {
+      opacity: .35;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      position: relative;
+    }
+
+    .step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 9px;
+      top: 26px;
+      bottom: -4px;
+      width: 1px;
+      background: var(--line);
+    }
+
+    .step-node {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1.5px solid var(--line2);
+      background: var(--ink3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all .25s;
+      position: relative;
+      z-index: 1;
+    }
+
+    .step.active .step-node {
+      border-color: var(--gold);
+      background: rgba(201, 168, 76, .1);
+      box-shadow: 0 0 12px rgba(201, 168, 76, .4);
+    }
+
+    .step.done .step-node {
+      border-color: var(--teal);
+      background: rgba(62, 207, 178, .1);
+    }
+
+    .step-num {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--mist);
+      transition: color .25s;
+    }
+
+    .step.active .step-num {
+      color: var(--gold);
+      animation: blink 1.2s ease-in-out infinite;
+    }
+
+    .step.done .step-num {
+      color: var(--teal);
+    }
+
+    .step-label {
+      font-size: 12px;
+      color: var(--mist);
+      transition: color .25s;
+    }
+
+    .step.active .step-label {
+      color: var(--pale);
+    }
+
+    .step.done .step-label {
+      color: var(--fog);
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .sum-card {
+      background: var(--ink4);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      transition: border-color .2s;
+    }
+
+    .sum-card:hover {
+      border-color: var(--line2);
+    }
+
+    .sum-n {
+      font-family: var(--serif);
+      font-size: 26px;
+      font-weight: 600;
+      color: var(--gold2);
+      line-height: 1;
+      letter-spacing: -.02em;
+    }
+
+    .sum-lbl {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--mist);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-top: 4px;
+    }
+
+    .ready-note {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 7px;
+      background: rgba(62, 207, 178, .07);
+      border: 1px solid rgba(62, 207, 178, .2);
+      font-size: 11px;
+      color: var(--teal);
+      line-height: 1.55;
+    }
+
+    .helper-note {
+      margin-top: 10px;
+      font-size: 10.5px;
+      color: var(--mist);
+      line-height: 1.6;
+    }
+
+    .error-box {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 7px;
+      background: var(--rose-dim);
+      border: 1px solid rgba(224, 92, 106, .25);
+      font-size: 11px;
+      color: #f9a8b0;
+      line-height: 1.55;
+    }
+
+    .right {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--ink);
+      min-height: 0;
+    }
+
+    .viewer-head {
+      display: flex;
+      align-items: center;
+      padding: 0 26px;
+      min-height: 60px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(13, 15, 21, .92);
+      gap: 14px;
+      flex-shrink: 0;
+    }
+
+    .viewer-title-wrap {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .viewer-title {
+      font-family: var(--serif);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--white);
+      letter-spacing: -.02em;
+    }
+
+    .viewer-sub {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--mist);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .btn-dl-top {
+      min-width: 160px;
+      min-height: 36px;
+      border-radius: 7px;
+      border: 1px solid rgba(62, 207, 178, .3);
+      background: rgba(62, 207, 178, .06);
+      color: var(--teal);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .01em;
+      cursor: pointer;
+      transition: all .2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .btn-dl-top:hover:not(:disabled) {
+      background: rgba(62, 207, 178, .13);
+      border-color: rgba(62, 207, 178, .5);
+    }
+
+    .btn-dl-top:disabled {
+      opacity: .35;
+      cursor: not-allowed;
+    }
+
+    .tab-bar {
+      display: flex;
+      padding: 0 26px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(13, 15, 21, .88);
+      flex-shrink: 0;
+      gap: 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .tab-bar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tab {
+      padding: 12px 14px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--mist);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      transition: color .15s, border-color .15s;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      position: relative;
+      bottom: -1px;
+      letter-spacing: .02em;
+    }
+
+    .tab:hover {
+      color: var(--fog);
+    }
+
+    .tab.active {
+      color: var(--gold2);
+      border-bottom-color: var(--gold);
+    }
+
+    .tab-cnt {
+      font-size: 9px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: var(--ink4);
+      border: 1px solid var(--line);
+      color: var(--mist);
+      font-family: var(--mono);
+    }
+
+    .tab.active .tab-cnt {
+      background: rgba(201, 168, 76, .12);
+      border-color: rgba(201, 168, 76, .28);
+      color: var(--gold);
+    }
+
+    .content {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 24px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--line2) transparent;
+    }
+
+    .empty {
+      height: 100%;
+      min-height: 400px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      text-align: center;
+      padding: 60px 20px;
+    }
+
+    .empty-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 16px;
+      background: var(--ink3);
+      border: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .empty-label {
+      font-family: var(--serif);
+      font-size: 18px;
+      font-weight: 300;
+      color: var(--fog);
+      letter-spacing: -.01em;
+    }
+
+    .empty-desc {
+      font-size: 12px;
+      color: var(--mist);
+      max-width: 380px;
+      line-height: 1.7;
+    }
+
+    .empty-arrow {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--line2);
+    }
+
+    .raw-pre {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: #9dd4f5;
+      background: rgba(7, 9, 14, .9);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 18px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.65;
+    }
+
+    .empty-tab {
+      text-align: center;
+      padding: 40px;
+      color: var(--mist);
+      font-size: 12px;
+      font-family: var(--mono);
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+    }
+
+    .preview-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .84rem;
+      color: #dbeafe;
+      margin-top: 12px;
+    }
+
+    .preview-table th {
+      background: rgba(201, 168, 76, .08);
+      color: var(--gold);
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: .04em;
+    }
+
+    .preview-table td {
+      padding: 11px 12px;
+      border-bottom: 1px solid rgba(148, 163, 184, .08);
+      vertical-align: top;
+      font-size: 12px;
+    }
+
+    .spin {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(12, 14, 20, .3);
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: rotate .7s linear infinite;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    @keyframes rotate {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: .4;
+      }
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--line2);
+      border-radius: 3px;
+    }
+
+    @media (max-width: 960px) {
+      body {
+        overflow-y: auto;
+      }
+
+      .shell {
+        height: auto;
+        min-height: 100vh;
+        grid-template-columns: 1fr;
+        grid-template-rows: 58px auto minmax(600px, 1fr);
+      }
+
+      .left {
+        border-right: none;
+        border-bottom: 1px solid var(--line);
+        overflow: visible;
+        min-height: unset;
+      }
+
+      .left-scroll {
+        overflow-y: visible;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-items: start;
+        padding: 16px;
+      }
+
+      .card.span2 {
+        grid-column: 1 / -1;
+      }
+
+      .right {
+        min-height: 600px;
+      }
+    }
+
+    @media (max-width: 580px) {
+      .left-scroll {
+        grid-template-columns: 1fr;
+        padding: 14px;
+      }
+
+      .content {
+        padding: 16px;
+      }
+
+      .viewer-head {
+        padding: 12px 16px;
+        flex-wrap: wrap;
+      }
+
+      .btn-dl-top {
+        width: 100%;
+      }
+
+      .tab-bar {
+        padding-left: 14px;
+      }
+
+      .topbar {
+        padding: 0 14px;
+      }
+
+      .brand-tagline,
+      .topbar-badge {
+        display: none;
+      }
+
+      .status-pill {
+        display: none;
+      }
+    }
+
+
+    /* ─────────────────────────────────────────────
+       FIX: reduce preview-side header/content gap
+       ───────────────────────────────────────────── */
+    .viewer-head {
+      min-height: 48px;
+      padding: 0 20px;
+    }
+
+    .tab-bar {
+      padding: 0 20px;
+    }
+
+    .tab {
+      padding: 8px 12px;
+    }
+
+    .content {
+      padding: 10px 18px 18px;
+    }
+
+    .content>div:first-child {
+      margin-top: 0 !important;
+    }
+
+    .space-y-4 {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 0 !important;
+    }
+
+    .preview-card {
+      background: var(--ink3);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px;
+      margin: 0 !important;
+    }
+
+    .plotly-container {
+      margin: 0 0 12px 0 !important;
+      padding: 0 !important;
+      background: var(--ink3);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .plotly-container .js-plotly-plot,
+    .plotly-container .plot-container,
+    .plotly-container .svg-container {
+      margin-top: 0 !important;
+    }
+
+
+    /* =========================================================
+       PROFESSIONAL ALIGNMENT SYSTEM
+       Keeps all existing workflow logic unchanged.
+       ========================================================= */
+    :root {
+      --topbar-h: 64px;
+      --sidebar-w: 352px;
+      --page-pad: 24px;
+      --section-gap: 16px;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --shadow-soft: 0 12px 32px rgba(0, 0, 0, .18);
+    }
+
+    html,
+    body,
+    #root {
+      width: 100%;
+      height: 100%;
+    }
+
+    body {
+      line-height: 1.5;
+    }
+
+    p,
+    li,
+    .helper-note,
+    .ready-note,
+    .error-box,
+    .empty-desc {
+      line-height: 1.65;
+    }
+
+    .shell {
+      grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+      grid-template-rows: var(--topbar-h) minmax(0, 1fr);
+      min-height: 100vh;
+      height: 100vh;
+    }
+
+    .topbar {
+      min-height: var(--topbar-h);
+      padding: 0 24px;
+      gap: 14px;
+      backdrop-filter: blur(14px);
+    }
+
+    .logo-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+    }
+
+    .brand-name {
+      font-size: 14px;
+      line-height: 1.2;
+    }
+
+    .brand-tagline {
+      margin-top: 2px;
+      line-height: 1.2;
+    }
+
+    .status-pill {
+      min-height: 32px;
+      padding: 6px 12px;
+      border-radius: 999px;
+    }
+
+    .left {
+      min-width: 0;
+      box-shadow: 12px 0 28px rgba(0, 0, 0, .1);
+    }
+
+    .left-scroll {
+      padding: 20px 16px 28px;
+      gap: var(--section-gap);
+      overscroll-behavior: contain;
+    }
+
+    .card {
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, .08);
+    }
+
+    .card-head {
+      min-height: 44px;
+      padding: 12px 14px;
+      gap: 12px;
+    }
+
+    .card-title {
+      line-height: 1.3;
+    }
+
+    .card-body {
+      padding: 14px;
+    }
+
+    .drop-zone {
+      min-height: 124px;
+      padding: 20px 14px;
+      gap: 7px;
+      border-radius: 9px;
+    }
+
+    .drop-label {
+      max-width: 260px;
+      margin-inline: auto;
+      line-height: 1.45;
+    }
+
+    .drop-sub {
+      line-height: 1.4;
+    }
+
+    .drop-filename {
+      width: 100%;
+      text-align: center;
+      line-height: 1.45;
+    }
+
+    .img-preview {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      align-items: stretch;
+    }
+
+    .img-preview img {
+      max-height: 150px;
+    }
+
+    .btn-run,
+    .btn-clear,
+    .btn-dl,
+    .btn-dl-top {
+      min-height: 40px;
+      border-radius: var(--radius-sm);
+      padding: 0 14px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    .btn-run,
+    .btn-clear,
+    .btn-dl {
+      margin-top: 10px;
+    }
+
+    .btn-clear {
+      margin-top: 8px;
+    }
+
+    .steps {
+      padding: 2px 0;
+    }
+
+    .step {
+      min-height: 42px;
+      padding: 8px 0;
+      align-items: flex-start;
+    }
+
+    .step-node {
+      margin-top: 1px;
+    }
+
+    .step-label {
+      padding-top: 1px;
+      line-height: 1.45;
+    }
+
+    .summary-grid {
+      gap: 10px;
+    }
+
+    .sum-card {
+      min-height: 78px;
+      padding: 13px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .ready-note,
+    .helper-note,
+    .error-box {
+      margin-top: 10px;
+    }
+
+    .right {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .viewer-head {
+      min-height: 64px;
+      padding: 10px 24px;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .viewer-title-wrap {
+      min-width: 220px;
+    }
+
+    .viewer-title {
+      font-size: 17px;
+      line-height: 1.25;
+    }
+
+    .viewer-sub {
+      margin-top: 4px;
+      line-height: 1.35;
+    }
+
+    .viewer-head .btn-dl-top {
+      min-width: 144px;
+      margin: 0;
+    }
+
+    .tab-bar {
+      min-height: 46px;
+      padding: 0 20px;
+      gap: 4px;
+      align-items: stretch;
+    }
+
+    .tab {
+      min-height: 46px;
+      padding: 0 12px;
+      bottom: 0;
+      justify-content: center;
+    }
+
+    .content {
+      padding: 20px 24px 24px;
+      background:
+        radial-gradient(circle at top right, rgba(201, 168, 76, .035), transparent 32%),
+        var(--ink);
+      overscroll-behavior: contain;
+    }
+
+    .content>* {
+      width: 100%;
+      max-width: 1500px;
+      margin-inline: auto;
+    }
+
+    .empty {
+      min-height: 460px;
+      padding: 56px 24px;
+      gap: 14px;
+    }
+
+    .empty-label {
+      margin-top: 4px;
+    }
+
+    .raw-pre,
+    .empty-tab,
+    .preview-card,
+    .plotly-container {
+      border-radius: var(--radius-md);
+    }
+
+    .preview-table {
+      margin-top: 0;
+    }
+
+    .preview-table th,
+    .preview-table td {
+      padding: 12px 14px;
+      line-height: 1.5;
+    }
+
+    .app-footer {
+      min-height: 42px;
+      padding: 10px 24px;
+      border-top: 1px solid var(--line);
+      background: rgba(13, 15, 21, .94);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+      font-family: var(--mono);
+      font-size: 9.5px;
+      color: var(--mist);
+      letter-spacing: .025em;
+    }
+
+    .footer-left,
+    .footer-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .footer-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 8px rgba(201, 168, 76, .45);
+    }
+
+    /* Normalize inline action rows used by the live-connection card. */
+    .card-body>div>div[style*="display: flex"],
+    .card-body div[style*="display: 'flex'"] {
+      align-items: center;
+    }
+
+    @media (max-width: 1180px) {
+      :root {
+        --sidebar-w: 328px;
+      }
+
+      .viewer-head {
+        flex-wrap: wrap;
+      }
+
+      .viewer-title-wrap {
+        flex-basis: 100%;
+      }
+
+      .viewer-head .btn-dl-top {
+        flex: 1;
+      }
+    }
+
+    @media (max-width: 960px) {
+      .shell {
+        height: auto;
+        min-height: 100vh;
+        grid-template-columns: 1fr;
+        grid-template-rows: var(--topbar-h) auto minmax(640px, 1fr);
+      }
+
+      .left-scroll {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        padding: 18px;
+      }
+
+      .right {
+        min-height: 640px;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .topbar {
+        padding: 0 14px;
+        gap: 10px;
+      }
+
+      .topbar-divider,
+      .topbar-badge,
+      .brand-tagline {
+        display: none;
+      }
+
+      .left-scroll {
+        grid-template-columns: 1fr;
+        padding: 14px;
+      }
+
+      .viewer-head {
+        padding: 14px 16px;
+      }
+
+      .viewer-head .btn-dl-top {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .tab-bar {
+        padding: 0 10px;
+      }
+
+      .content {
+        padding: 14px;
+      }
+
+      .app-footer {
+        padding: 10px 14px;
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 5px;
+      }
+    }
+
+
+    /* =========================================================
+       CONVERSION STUDIO THEME SYSTEM
+       ========================================================= */
+    :root {
+      --accent: #c9a84c;
+      --accent-strong: #e8cc7a;
+      --accent-soft: rgba(201, 168, 76, .12);
+      --accent-border: rgba(201, 168, 76, .30);
+      --topbar-glow: rgba(201, 168, 76, .08);
+    }
+
+    .shell[data-theme="ocean"] {
+      --accent: #4fa3ff;
+      --accent-strong: #9dcbff;
+      --accent-soft: rgba(79, 163, 255, .12);
+      --accent-border: rgba(79, 163, 255, .32);
+      --topbar-glow: rgba(79, 163, 255, .09);
+      --gold: #4fa3ff;
+      --gold2: #9dcbff;
+      --gold-dim: rgba(79, 163, 255, .12);
+      --gold-mid: rgba(79, 163, 255, .22);
+    }
+
+    .shell[data-theme="violet"] {
+      --accent: #9b87f5;
+      --accent-strong: #c9beff;
+      --accent-soft: rgba(155, 135, 245, .13);
+      --accent-border: rgba(155, 135, 245, .32);
+      --topbar-glow: rgba(155, 135, 245, .09);
+      --gold: #9b87f5;
+      --gold2: #c9beff;
+      --gold-dim: rgba(155, 135, 245, .13);
+      --gold-mid: rgba(155, 135, 245, .22);
+    }
+
+    .shell[data-theme="emerald"] {
+      --accent: #2fc59f;
+      --accent-strong: #8ce8d0;
+      --accent-soft: rgba(47, 197, 159, .12);
+      --accent-border: rgba(47, 197, 159, .31);
+      --topbar-glow: rgba(47, 197, 159, .09);
+      --gold: #2fc59f;
+      --gold2: #8ce8d0;
+      --gold-dim: rgba(47, 197, 159, .12);
+      --gold-mid: rgba(47, 197, 159, .22);
+    }
+
+    .shell[data-mode="light"] {
+      --ink: #f4f6fb;
+      --ink2: #ffffff;
+      --ink3: #ffffff;
+      --ink4: #f7f8fc;
+      --line: #dfe4ee;
+      --line2: #cdd5e2;
+      --fog: #4d596d;
+      --mist: #748095;
+      --pale: #222938;
+      --white: #111827;
+      --teal: #138a72;
+      --teal-dim: rgba(19, 138, 114, .10);
+      --rose: #cf3f52;
+      --rose-dim: rgba(207, 63, 82, .09);
+      color-scheme: light;
+    }
+
+    .shell[data-mode="light"] .topbar,
+    .shell[data-mode="light"] .viewer-head,
+    .shell[data-mode="light"] .tab-bar,
+    .shell[data-mode="light"] .app-footer {
+      background: rgba(255, 255, 255, .92);
+    }
+
+    .shell[data-mode="light"] .left {
+      background: #f8f9fc;
+      box-shadow: 12px 0 28px rgba(35, 47, 72, .06);
+    }
+
+    .shell[data-mode="light"] .content {
+      background:
+        radial-gradient(circle at top right, var(--accent-soft), transparent 32%),
+        #f4f6fb;
+    }
+
+    .shell[data-mode="light"] .card,
+    .shell[data-mode="light"] .preview-card,
+    .shell[data-mode="light"] .plotly-container {
+      box-shadow: 0 10px 30px rgba(35, 47, 72, .07);
+    }
+
+    .shell[data-mode="light"] .drop-zone,
+    .shell[data-mode="light"] .raw-pre {
+      background: #f8f9fc;
+    }
+
+    .shell[data-mode="light"] .raw-pre {
+      color: #245f86;
+    }
+
+    .shell[data-mode="light"] .preview-table {
+      color: #263247;
+    }
+
+    .shell[data-mode="light"] .preview-table th {
+      background: var(--accent-soft);
+    }
+
+    .topbar::after {
+      background: linear-gradient(90deg, var(--topbar-glow), transparent 62%);
+    }
+
+    .theme-tools {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .theme-select,
+    .mode-toggle {
+      height: 34px;
+      border: 1px solid var(--line2);
+      background: var(--ink2);
+      color: var(--pale);
+      border-radius: 9px;
+      font-family: var(--sans);
+      font-size: 11px;
+      font-weight: 600;
+      outline: none;
+      transition: border-color .2s, background .2s, transform .15s;
+    }
+
+    .theme-select {
+      min-width: 128px;
+      padding: 0 30px 0 11px;
+      appearance: auto;
+    }
+
+    .theme-select:focus,
+    .mode-toggle:focus-visible {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .mode-toggle {
+      min-width: 92px;
+      padding: 0 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+
+    .mode-toggle:hover,
+    .theme-select:hover {
+      border-color: var(--accent-border);
+    }
+
+    .mode-toggle:hover {
+      transform: translateY(-1px);
+    }
+
+    .mode-symbol {
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .workspace-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 5px;
+      color: var(--gold);
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: .10em;
+      text-transform: uppercase;
+    }
+
+    .workspace-kicker::before {
+      content: '';
+      width: 14px;
+      height: 1px;
+      background: currentColor;
+    }
+
+    .btn-run {
+      background: linear-gradient(135deg, var(--gold2), var(--gold));
+    }
+
+    .logo-mark {
+      border-color: var(--accent-border);
+      background: linear-gradient(135deg, var(--accent-soft), transparent);
+    }
+
+    @media (max-width: 760px) {
+      .theme-select {
+        min-width: 104px;
+      }
+
+      .mode-toggle {
+        min-width: 40px;
+        padding: 0 10px;
+      }
+
+      .mode-label {
+        display: none;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .theme-select {
+        display: none;
+      }
+    }
+
+
+    /* =========================================================
+       FINAL PROFESSIONAL CONTRAST & TYPOGRAPHY PASS
+       Single gold visual identity with light / dark modes only.
+       ========================================================= */
+    :root {
+      --accent: #d4ad45;
+      --accent-strong: #f0d47d;
+      --accent-soft: rgba(212, 173, 69, .14);
+      --accent-border: rgba(212, 173, 69, .42);
+    }
+
+    .theme-tools {
+      gap: 10px;
+    }
+
+    .mode-toggle {
+      min-width: 104px;
+      height: 38px;
+      border: 1px solid var(--accent-border);
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      font-weight: 700;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .025);
+    }
+
+    .mode-toggle:hover {
+      border-color: var(--accent);
+      background: rgba(212, 173, 69, .20);
+      color: var(--white);
+    }
+
+    .brand-name,
+    .viewer-title,
+    .empty-label {
+      font-weight: 700;
+    }
+
+    .brand-name {
+      font-size: 15px;
+      letter-spacing: -.015em;
+    }
+
+    .brand-tagline,
+    .viewer-sub,
+    .drop-sub,
+    .helper-note,
+    .sum-lbl {
+      color: var(--fog);
+      font-weight: 500;
+    }
+
+    .card-title,
+    .workspace-kicker,
+    .tab,
+    .badge-req,
+    .badge-opt,
+    .topbar-badge {
+      font-weight: 700;
+    }
+
+    .card-title {
+      color: var(--pale);
+      font-size: 9.5px;
+      letter-spacing: .115em;
+    }
+
+    .drop-label,
+    .step-label {
+      font-weight: 600;
+      color: var(--pale);
+    }
+
+    .sum-n {
+      color: var(--accent-strong);
+      font-weight: 700;
+      text-shadow: 0 0 18px rgba(212, 173, 69, .12);
+    }
+
+    .card-head {
+      background: linear-gradient(180deg, rgba(255, 255, 255, .025), transparent);
+    }
+
+    .card:hover {
+      border-color: var(--accent-border);
+    }
+
+    .drop-zone:hover,
+    .drop-zone.over {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .drop-zone.has {
+      border-style: solid;
+      border-color: rgba(62, 207, 178, .62);
+      box-shadow: 0 0 0 3px rgba(62, 207, 178, .08);
+    }
+
+    .tab {
+      color: var(--fog);
+    }
+
+    .tab:hover {
+      color: var(--pale);
+      background: var(--accent-soft);
+    }
+
+    .tab.active {
+      color: var(--accent-strong);
+      border-bottom-color: var(--accent);
+      background: linear-gradient(180deg, transparent, var(--accent-soft));
+    }
+
+    .tab.active .tab-cnt {
+      color: var(--accent-strong);
+      border-color: var(--accent-border);
+      font-weight: 700;
+    }
+
+    .btn-run,
+    .btn-clear,
+    .btn-dl,
+    .btn-dl-top {
+      font-weight: 700;
+    }
+
+    .btn-run {
+      color: #111318;
+      box-shadow: 0 9px 24px rgba(212, 173, 69, .23);
+    }
+
+    .btn-dl,
+    .btn-dl-top {
+      border-color: rgba(62, 207, 178, .48);
+      background: rgba(62, 207, 178, .10);
+    }
+
+    .status-pill {
+      color: var(--pale);
+      font-weight: 600;
+    }
+
+    .ready-note,
+    .error-box {
+      font-weight: 600;
+    }
+
+    .preview-table th {
+      color: var(--accent-strong);
+      font-weight: 700;
+    }
+
+    .preview-table td {
+      color: var(--pale);
+      font-weight: 500;
+    }
+
+    .shell[data-mode="light"] {
+      --accent: #9a6d08;
+      --accent-strong: #7a5200;
+      --accent-soft: rgba(154, 109, 8, .10);
+      --accent-border: rgba(154, 109, 8, .34);
+      --fog: #445064;
+      --mist: #647086;
+      --pale: #172033;
+      --white: #0b1220;
+    }
+
+    .shell[data-mode="light"] .card-head {
+      background: linear-gradient(180deg, #ffffff, #f8f9fc);
+    }
+
+    .shell[data-mode="light"] .mode-toggle {
+      background: #fff8e7;
+      color: #6f4a00;
+      border-color: rgba(154, 109, 8, .38);
+    }
+
+    .shell[data-mode="light"] .tab.active {
+      color: #6f4a00;
+      background: linear-gradient(180deg, transparent, rgba(154, 109, 8, .10));
+    }
+
+    .shell[data-mode="light"] .drop-zone.has {
+      border-color: rgba(19, 138, 114, .55);
+      background: rgba(19, 138, 114, .07);
+    }
+
+    .shell[data-mode="light"] .preview-table td {
+      color: #253047;
+    }
+
+    .shell[data-mode="light"] .status-pill.idle {
+      color: #ffffff;
+      background: #1b2433;
+      border-color: #334155;
+    }
+
+    @media (max-width: 760px) {
+      .mode-toggle {
+        min-width: 42px;
+      }
+    }
+
+    /* =========================================================
+       LIGHT MODE PREVIEW CONTRAST + COLOR CODE FIX
+       Keeps backend-generated preview HTML readable in both modes.
+       ========================================================= */
+    :root {
+      --preview-bg: #121722;
+      --preview-panel: #1a202d;
+      --preview-panel-2: #222a39;
+      --preview-text: #eef2ff;
+      --preview-muted: #aab4c8;
+      --preview-heading: #ffffff;
+      --preview-link: #8fc7ff;
+      --preview-code-bg: #0b1019;
+      --preview-code-text: #bfe3ff;
+      --preview-border: #313b50;
+      --preview-row-alt: rgba(255, 255, 255, .025);
+      --preview-row-hover: rgba(212, 173, 69, .08);
+      --preview-positive: #6ee7c5;
+      --preview-negative: #ff9cab;
+      --preview-warning: #f2cc72;
+    }
+
+    .shell[data-mode="light"] {
+      --preview-bg: #f4f6fb;
+      --preview-panel: #ffffff;
+      --preview-panel-2: #f7f9fc;
+      --preview-text: #1d2939;
+      --preview-muted: #536176;
+      --preview-heading: #0b1220;
+      --preview-link: #145ea8;
+      --preview-code-bg: #eef3f8;
+      --preview-code-text: #174f78;
+      --preview-border: #d8e0eb;
+      --preview-row-alt: #f8fafc;
+      --preview-row-hover: rgba(154, 109, 8, .07);
+      --preview-positive: #0f766e;
+      --preview-negative: #b4233b;
+      --preview-warning: #8a5d00;
+    }
+
+    .preview-surface {
+      color: var(--preview-text);
+      background: transparent;
+      min-width: 0;
+    }
+
+    .preview-surface,
+    .preview-surface p,
+    .preview-surface li,
+    .preview-surface dd,
+    .preview-surface dt,
+    .preview-surface span,
+    .preview-surface div {
+      color: var(--preview-text);
+    }
+
+    .preview-surface h1,
+    .preview-surface h2,
+    .preview-surface h3,
+    .preview-surface h4,
+    .preview-surface h5,
+    .preview-surface h6,
+    .preview-surface strong,
+    .preview-surface b {
+      color: var(--preview-heading);
+    }
+
+    .preview-surface small,
+    .preview-surface .muted,
+    .preview-surface .text-muted,
+    .preview-surface [class*="muted"],
+    .preview-surface [class*="secondary"],
+    .preview-surface [class*="subtitle"],
+    .preview-surface [class*="description"] {
+      color: var(--preview-muted) !important;
+    }
+
+    .preview-surface a {
+      color: var(--preview-link) !important;
+      text-decoration-color: color-mix(in srgb, var(--preview-link) 45%, transparent);
+    }
+
+    .preview-surface code,
+    .preview-surface pre,
+    .preview-surface kbd,
+    .preview-surface samp,
+    .raw-pre {
+      background: var(--preview-code-bg) !important;
+      color: var(--preview-code-text) !important;
+      border-color: var(--preview-border) !important;
+    }
+
+    .preview-surface code {
+      padding: 2px 5px;
+      border: 1px solid var(--preview-border);
+      border-radius: 5px;
+      font-family: var(--mono);
+      overflow-wrap: anywhere;
+    }
+
+    .preview-surface pre code {
+      padding: 0;
+      border: 0;
+      background: transparent !important;
+    }
+
+    .preview-surface table,
+    .preview-surface .preview-table {
+      color: var(--preview-text) !important;
+      background: var(--preview-panel) !important;
+      border-color: var(--preview-border) !important;
+    }
+
+    .preview-surface thead,
+    .preview-surface th {
+      color: var(--preview-heading) !important;
+      background: var(--accent-soft) !important;
+      border-color: var(--preview-border) !important;
+    }
+
+    .preview-surface tbody,
+    .preview-surface td,
+    .preview-surface tr {
+      color: var(--preview-text) !important;
+      border-color: var(--preview-border) !important;
+    }
+
+    .preview-surface tbody tr:nth-child(even) {
+      background: var(--preview-row-alt) !important;
+    }
+
+    .preview-surface tbody tr:hover {
+      background: var(--preview-row-hover) !important;
+    }
+
+    .preview-surface .preview-card,
+    .preview-surface .card,
+    .preview-surface [class*="panel"],
+    .preview-surface [class*="section"],
+    .preview-surface [class*="record"],
+    .preview-surface [class*="item"] {
+      background-color: var(--preview-panel) !important;
+      border-color: var(--preview-border) !important;
+      color: var(--preview-text) !important;
+    }
+
+    .preview-surface blockquote {
+      color: var(--preview-muted) !important;
+      background: var(--preview-panel-2) !important;
+      border-left: 3px solid var(--accent) !important;
+      padding: 10px 12px;
+      border-radius: 0 7px 7px 0;
+    }
+
+    .preview-surface hr {
+      border: 0;
+      border-top: 1px solid var(--preview-border);
+    }
+
+    /* Override hard-coded dark-preview text colors returned by backend HTML. */
+    .shell[data-mode="light"] .preview-surface [style*="color: white"],
+    .shell[data-mode="light"] .preview-surface [style*="color:white"],
+    .shell[data-mode="light"] .preview-surface [style*="color: #fff"],
+    .shell[data-mode="light"] .preview-surface [style*="color:#fff"],
+    .shell[data-mode="light"] .preview-surface [style*="color: #ffffff"],
+    .shell[data-mode="light"] .preview-surface [style*="color:#ffffff"],
+    .shell[data-mode="light"] .preview-surface [style*="color: rgb(255"],
+    .shell[data-mode="light"] .preview-surface [style*="color: #e"],
+    .shell[data-mode="light"] .preview-surface [style*="color:#e"],
+    .shell[data-mode="light"] .preview-surface [style*="color: #d"],
+    .shell[data-mode="light"] .preview-surface [style*="color:#d"] {
+      color: var(--preview-text) !important;
+    }
+
+    .shell[data-mode="light"] .preview-surface [style*="background: #0"],
+    .shell[data-mode="light"] .preview-surface [style*="background:#0"],
+    .shell[data-mode="light"] .preview-surface [style*="background-color: #0"],
+    .shell[data-mode="light"] .preview-surface [style*="background-color:#0"],
+    .shell[data-mode="light"] .preview-surface [style*="background: rgb(0"],
+    .shell[data-mode="light"] .preview-surface [style*="background-color: rgb(0"] {
+      background: var(--preview-panel) !important;
+    }
+
+    /* Color values and swatches remain visible in light and dark modes. */
+    .preview-surface .color-code,
+    .preview-surface .hex-code,
+    .preview-surface [class*="color-code"],
+    .preview-surface [class*="hex-code"] {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 7px;
+      border: 1px solid var(--preview-border);
+      border-radius: 6px;
+      background: var(--preview-code-bg) !important;
+      color: var(--preview-code-text) !important;
+      font-family: var(--mono);
+      font-size: 10px;
+      line-height: 1.3;
+    }
+
+    .preview-surface input[type="color"] {
+      width: 34px;
+      height: 26px;
+      padding: 2px;
+      border: 1px solid var(--preview-border);
+      border-radius: 6px;
+      background: var(--preview-panel);
+    }
+
+    /* Fix the visible theme controls and form option colors. */
+    .theme-select,
+    .theme-select option,
+    .mode-toggle {
+      background-color: var(--ink2);
+      color: var(--pale);
+    }
+
+    .shell[data-mode="light"] .theme-select,
+    .shell[data-mode="light"] .theme-select option {
+      background: #ffffff;
+      color: #172033;
+    }
+
+    .shell[data-mode="light"] .mode-toggle:hover {
+      color: #4e3500;
+      background: #fff1c7;
+    }
+
+    /* Status colors must retain contrast in light mode. */
+    .shell[data-mode="light"] .status-pill.uploaded {
+      color: #7a5500;
+      background: #fff8df;
+      border-color: #e8cc7a;
+    }
+
+    .shell[data-mode="light"] .status-pill.processing {
+      color: #9a4d00;
+      background: #fff2e2;
+      border-color: #efb77c;
+    }
+
+    .shell[data-mode="light"] .status-pill.success {
+      color: #11633a;
+      background: #eaf8ef;
+      border-color: #9bd6ae;
+    }
+
+    /* Make SVG and Plotly labels readable after a mode switch. */
+    .shell[data-mode="light"] .preview-surface svg text {
+      fill: #1d2939 !important;
+    }
+
+    .shell[data-mode="light"] .preview-surface .plotly text {
+      fill: #1d2939 !important;
+    }
+
+    .shell[data-mode="light"] .preview-surface .plotly .bg,
+    .shell[data-mode="light"] .preview-surface .plotly .plotly {
+      fill: #ffffff !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useRef, useEffect } = React;
+
+    const API_BASE = window.location.port === "8000" ? "" : "http://127.0.0.1:8000";
+
+    const Ico = ({ id, size = 16, cls = '' }) => {
+      const p = {
+        bolt: <><path d="M13 2L4.5 13h6.5l-1 7 8.5-11H12l1-7z" /></>,
+        upload: <><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></>,
+        img: <><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></>,
+        check: <><polyline points="20 6 9 17 4 12" /></>,
+        dl: <><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></>,
+        x: <><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>,
+        eye: <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></>,
+        arrow: <><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></>,
+      };
+
+      return (
+        <svg
+          width={size}
+          height={size}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={cls}
+          style={{ flexShrink: 0 }}
+        >
+          {p[id]}
+        </svg>
+      );
+    };
+
+    const StepRow = ({ n, label, st }) => (
+      <div className={`step ${st === 'running' ? 'active' : ''} ${st === 'done' ? 'done' : ''}`}>
+        <div className="step-node">
+          {st === 'done' ? <Ico id="check" size={10} /> : <span className="step-num">{n}</span>}
+        </div>
+        <span className="step-label">{label}</span>
+      </div>
+    );
+
+    const Preview = ({ data, tab }) => {
+      const p = data?.chunks_preview;
+
+      if (!data || !p) {
+        return (
+          <div className="empty">
+            <div className="empty-icon">
+              <Ico id="eye" size={28} />
+            </div>
+            <p className="empty-label">Awaiting conversion</p>
+            <p className="empty-desc">
+              Upload the PBIX, dashboard screenshot, and TMDL metadata to analyze the report,
+              preview the report structure, and prepare the interactive live Excel connection.
+            </p>
+            <div className="empty-arrow">
+              <Ico id="arrow" size={12} />
+              <span>Select all three required files from the left panel to begin</span>
+            </div>
+          </div>
+        );
+      }
+
+      if (tab === 'raw') {
+        return (
+          <pre className="raw-pre preview-surface">
+            {p.raw_json_preview?.text || JSON.stringify(data, null, 2)}
+          </pre>
+        );
+      }
+
+      const map = {
+        analysis: p.metadata_analysis_preview?.html,
+        tables: p.tables_preview?.html,
+        relationships: p.relationships_preview?.html,
+        formulas: p.formulas_preview?.html,
+        visuals: p.visuals_preview?.html,
+        descriptions: p.visual_descriptions_preview?.html,
+      };
+
+      return (
+        <div
+          className="preview-surface"
+          dangerouslySetInnerHTML={{
+            __html: map[tab] || `<div class="empty-tab">No ${tab} data found</div>`,
+          }}
+        />
+      );
+    };
+
+    const App = () => {
+      const [file, setFile] = useState(null);
+      const [ssFile, setSsFile] = useState(null);
+      const [tmdlFile, setTmdlFile] = useState(null);
+      const [ssPrev, setSsPrev] = useState(null);
+      const [over, setOver] = useState(false);
+      const [ssOver, setSsOver] = useState(false);
+      const [tmdlOver, setTmdlOver] = useState(false);
+      const [busy, setBusy] = useState(false);
+      const [pdfBusy, setPdfBusy] = useState(false);
+      const [data, setData] = useState(null);
+      const [tab, setTab] = useState('analysis');
+      const [err, setErr] = useState(null);
+      const [steps, setSteps] = useState({ a: 'idle', b: 'idle', c: 'idle', d: 'idle' });
+
+      // Live Connect workflow states
+      const [liveConnectState, setLiveConnectState] = useState(null);
+      const [liveBusy, setLiveBusy] = useState(false);
+      const [liveSessionId, setLiveSessionId] = useState(null);
+      const [liveStatusMessage, setLiveStatusMessage] = useState(null);
+      const [liveMatchScore, setLiveMatchScore] = useState(null);
+      const [livePivotCount, setLivePivotCount] = useState(0);
+      const [liveWarnings, setLiveWarnings] = useState([]);
+      const [liveErr, setLiveErr] = useState(null);
+      const [liveInterval, setLiveInterval] = useState(null);
+
+      const [mode, setMode] = useState(() => localStorage.getItem('conversion-studio-mode') || 'dark');
+
+      useEffect(() => {
+        localStorage.setItem('conversion-studio-mode', mode);
+        document.documentElement.style.colorScheme = mode;
+      }, [mode]);
+
+
+      // Helper: normalise backend response to always read .state (fallback to .status)
+      const getLiveState = (d) => (d && (d.state || d.status)) || null;
+
+      // Terminal states where polling should stop
+      const LIVE_TERMINAL = new Set([
+        'completed_live', 'live_conversion_failed', 'cancelled', 'error'
+      ]);
+      // Retriable states where Continue button should reappear
+      const LIVE_RETRIABLE = new Set([
+        'waiting_for_user_connection', 'connection_not_detected', 'semantic_model_mismatch'
+      ]);
+
+      // Start a status-polling interval, storing its id in liveInterval
+      const startPolling = (sid, onTerminal) => {
+        const id = setInterval(async () => {
+          try {
+            const res = await fetch(`${API_BASE}/live-connect/${sid}/status`);
+            if (!res.ok) return;
+            const s = await res.json();
+            const st = getLiveState(s);
+            if (st) setLiveConnectState(st);
+            if (s.pivot_tables_created !== undefined) setLivePivotCount(s.pivot_tables_created);
+            if (s.semantic_match_score !== undefined) setLiveMatchScore(s.semantic_match_score);
+            if (s.warnings?.length) setLiveWarnings(s.warnings);
+            if (LIVE_TERMINAL.has(st) || LIVE_RETRIABLE.has(st)) {
+              clearInterval(id);
+              setLiveInterval(null);
+              setLiveBusy(false);
+              if (onTerminal) onTerminal(st, s);
+            }
+          } catch (e) {
+            console.error('Status poll error:', e);
+          }
+        }, 1500);
+        setLiveInterval(id);
+        return id;
+      };
+
+      const startLiveConnect = async () => {
+        if (!data?.session_id) return;
+        if (liveBusy || (liveConnectState && !LIVE_TERMINAL.has(liveConnectState))) return;
+        setLiveBusy(true);
+        setLiveErr(null);
+        setLiveConnectState('excel_launching');
+
+        try {
+          const res = await fetch(`${API_BASE}/live-connect/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: data.session_id }),
+          });
+
+          if (!res.ok) {
+            const txt = await res.text();
+            throw new Error(txt || `Failed to start session (${res.status})`);
+          }
+
+          const d = await res.json();
+          const st = getLiveState(d);
+          setLiveSessionId(d.session_id);
+          setLiveConnectState(st || 'excel_launching');
+          setLiveStatusMessage(d.message);
+
+          // If Excel is still launching, start polling so we detect
+          // when it reaches waiting_for_user_connection
+          if (!LIVE_RETRIABLE.has(st) && !LIVE_TERMINAL.has(st)) {
+            startPolling(d.session_id, null);
+          }
+        } catch (e) {
+          console.error(e);
+          setLiveErr(e.message || 'Failed to start Live Connect session.');
+          setLiveConnectState('live_conversion_failed');
+        } finally {
+          setLiveBusy(false);
+        }
+      };
+
+      const continueLiveConnect = async () => {
+        if (!liveSessionId) return;
+        if (liveBusy) return;
+        setLiveBusy(true);
+        setLiveErr(null);
+
+        try {
+          // POST /continue — now returns immediately with state=detecting_connection
+          const res = await fetch(`${API_BASE}/live-connect/${liveSessionId}/continue`, {
+            method: 'POST',
+          });
+
+          if (!res.ok) {
+            const txt = await res.text();
+            throw new Error(txt || `Failed to continue session (${res.status})`);
+          }
+
+          const d = await res.json();
+          const st = getLiveState(d);
+          if (st) setLiveConnectState(st);
+
+          // Start polling — it will stop when terminal or retriable state is reached
+          startPolling(liveSessionId, (finalState, finalData) => {
+            if (finalState === 'completed_live') {
+              if (finalData.semantic_match_score !== undefined) setLiveMatchScore(finalData.semantic_match_score);
+              if (finalData.warnings?.length) setLiveWarnings(finalData.warnings);
+              fetchReport(liveSessionId);
+            } else if (finalState === 'semantic_model_mismatch') {
+              if (finalData.semantic_match_score !== undefined) setLiveMatchScore(finalData.semantic_match_score);
+            }
+          });
+          // liveBusy will be cleared by the polling callback when state settles
+        } catch (e) {
+          console.error(e);
+          setLiveErr(e.message || 'Failed to build live connection.');
+          setLiveConnectState('live_conversion_failed');
+          setLiveBusy(false);
+        }
+      };
+
+      const cancelLiveConnect = async () => {
+        if (!liveSessionId) return;
+        setLiveBusy(true);
+        try {
+          if (liveInterval) {
+            clearInterval(liveInterval);
+            setLiveInterval(null);
+          }
+          const res = await fetch(`${API_BASE}/live-connect/${liveSessionId}/cancel`, {
+            method: 'POST',
+          });
+          if (!res.ok) throw new Error();
+          setLiveConnectState('cancelled');
+        } catch (e) {
+          console.error(e);
+          setLiveErr('Failed to cancel Live Connect session.');
+          setLiveConnectState('live_conversion_failed');
+        } finally {
+          setLiveBusy(false);
+        }
+      };
+
+      const resetLiveConnectState = () => {
+        if (liveInterval) {
+          clearInterval(liveInterval);
+          setLiveInterval(null);
+        }
+        setLiveConnectState(null);
+        setLiveSessionId(null);
+        setLiveStatusMessage(null);
+        setLiveMatchScore(null);
+        setLivePivotCount(0);
+        setLiveWarnings([]);
+        setLiveErr(null);
+      };
+
+      const fetchReport = async (sid) => {
+        try {
+          const res = await fetch(`${API_BASE}/live-connect/${sid}/report`);
+          if (res.ok) {
+            const reportData = await res.json();
+            setData((prev) => ({
+              ...prev,
+              chunks_preview: reportData.chunks_preview || prev.chunks_preview,
+              summary: reportData.summary || prev.summary,
+            }));
+          }
+        } catch (e) {
+          console.error('Failed to fetch live session report:', e);
+        }
+      };
+
+      const downloadLiveExcel = () => {
+        if (!liveSessionId) return;
+        window.open(`${API_BASE}/live-connect/${liveSessionId}/download`, '_blank');
+      };
+
+      const downloadLiveReport = () => {
+        if (!liveSessionId) return;
+        window.open(`${API_BASE}/live-connect/${liveSessionId}/report`, '_blank');
+      };
+
+      const ref = useRef(null);
+      const ssRef = useRef(null);
+      const tmdlRef = useRef(null);
+
+      const s = data?.summary || {};
+      const p = data?.chunks_preview || {};
+      const ct = {
+        analysis: p.metadata_analysis_preview?.count || data?.metadata_analysis?.overall_counts?.total_visuals || 0,
+        tables: p.tables_preview?.count || s.total_model_tables || s.total_tables || s.tables || 0,
+        relationships: p.relationships_preview?.count || s.total_relationships || s.relationships || 0,
+        formulas: p.formulas_preview?.count || s.total_formulas || s.measures || 0,
+        visuals: p.visuals_preview?.count || s.total_visuals || s.visuals || 0,
+        descriptions: p.visual_descriptions_preview?.records?.length || s.total_visuals || s.visuals || 0,
+      };
+
+      const resetSteps = () => setSteps({ a: 'idle', b: 'idle', c: 'idle', d: 'idle' });
+
+      const resetAll = () => {
+        setData(null);
+        setTab('analysis');
+        resetSteps();
+        resetLiveConnectState();
+      };
+
+      const pickFile = (sel) => {
+        if (!sel) return;
+        if (!sel.name.toLowerCase().endsWith('.pbix')) {
+          setErr('Only .pbix files are accepted.');
+          setFile(null);
+          resetAll();
+          if (ref.current) ref.current.value = '';
+          return;
+        }
+        setFile(sel);
+        setErr(null);
+        resetAll();
+      };
+
+      const pickSs = (sel) => {
+        if (!sel) return;
+        const ext = sel.name.toLowerCase().split('.').pop();
+        if (!['png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
+          setErr('Screenshot must be .png, .jpg, .jpeg, or .webp.');
+          return;
+        }
+        setSsFile(sel);
+        setErr(null);
+        resetAll();
+
+        const rd = new FileReader();
+        rd.onloadend = () => setSsPrev(rd.result);
+        rd.readAsDataURL(sel);
+      };
+
+      const pickTmdl = (sel) => {
+        if (!sel) return;
+        const lower = sel.name.toLowerCase();
+        const valid = ['.tmdl', '.txt', '.json'].some((ext) => lower.endsWith(ext));
+
+        if (!valid) {
+          setErr('Model metadata must be .tmdl, .txt, or .json.');
+          setTmdlFile(null);
+          resetAll();
+          if (tmdlRef.current) tmdlRef.current.value = '';
+          return;
+        }
+
+        setTmdlFile(sel);
+        setErr(null);
+        resetAll();
+      };
+
+      const removeSs = (e) => {
+        e?.stopPropagation();
+        setSsFile(null);
+        setSsPrev(null);
+        resetAll();
+        if (ssRef.current) ssRef.current.value = '';
+      };
+
+      const removeTmdl = (e) => {
+        e?.stopPropagation();
+        setTmdlFile(null);
+        resetAll();
+        if (tmdlRef.current) tmdlRef.current.value = '';
+      };
+
+      const run = async () => {
+        if (!file || !ssFile || !tmdlFile) {
+          setErr('PBIX, dashboard screenshot, and TMDL metadata are required.');
+          return;
+        }
+
+        setBusy(true);
+        setErr(null);
+        setData(null);
+        resetSteps();
+
+        const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+        try {
+          setSteps((prev) => ({ ...prev, a: 'running' }));
+          await wait(200);
+
+          const fd = new FormData();
+          fd.append('file', file);
+          if (ssFile) fd.append('screenshot', ssFile);
+          if (tmdlFile) fd.append('tmdl_metadata', tmdlFile);
+
+          const res = await fetch(`${API_BASE}/upload`, {
+            method: 'POST',
+            body: fd,
+          });
+
+          if (!res.ok) {
+            const t = await res.text();
+            let msg = `Upload failed (${res.status})`;
+            try {
+              const j = JSON.parse(t);
+              if (j.detail) {
+                msg = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail);
+              }
+            } catch (_) {
+              if (t) msg = t;
+            }
+            throw new Error(msg);
+          }
+
+          setSteps((prev) => ({ ...prev, a: 'done', b: 'running' }));
+          await wait(200);
+
+          const d = await res.json();
+          if (!d || (!d.download_url && !d.session_id)) {
+            throw new Error('Backend did not return a download URL.');
+          }
+
+          setSteps((prev) => ({ ...prev, b: 'done', c: 'running' }));
+          await wait(200);
+          setSteps((prev) => ({ ...prev, c: 'done', d: 'running' }));
+          await wait(200);
+          setSteps((prev) => ({ ...prev, d: 'done' }));
+
+          setData(d);
+          setTab('analysis');
+        } catch (e) {
+          setErr(e.message || 'Processing failed.');
+          resetSteps();
+        } finally {
+          setBusy(false);
+        }
+      };
+
+      const clearAll = () => {
+        setFile(null);
+        setSsFile(null);
+        setTmdlFile(null);
+        setSsPrev(null);
+        setData(null);
+        setErr(null);
+        setTab('analysis');
+        resetSteps();
+        resetLiveConnectState();
+
+        if (ref.current) ref.current.value = '';
+        if (ssRef.current) ssRef.current.value = '';
+        if (tmdlRef.current) tmdlRef.current.value = '';
+      };
+
+      const downloadPreview = async () => {
+        if (!data?.session_id) {
+          setErr('Run the conversion before downloading the preview PDF.');
+          return;
+        }
+
+        setPdfBusy(true);
+        setErr(null);
+
+        try {
+          if (data.pdf_status && data.pdf_status.download_ready === false) {
+            throw new Error(
+              data.pdf_status.error || 'The server-side preview PDF is not available.'
+            );
+          }
+
+          const path = data.preview_download_url || `/download-preview/${data.session_id}`;
+          const separator = path.includes('?') ? '&' : '?';
+          const url = `${API_BASE}${path}${separator}_=${Date.now()}`;
+
+          const res = await fetch(url, {
+            method: 'GET',
+            cache: 'no-store',
+            headers: { Accept: 'application/pdf' },
+          });
+
+          if (!res.ok) {
+            const text = await res.text();
+            let message = `Preview PDF download failed (${res.status}).`;
+            try {
+              const parsed = JSON.parse(text);
+              const detail = parsed?.detail;
+              message =
+                detail?.reason ||
+                detail?.message ||
+                (typeof detail === 'string' ? detail : message);
+            } catch (_) {
+              if (text) message = text;
+            }
+            throw new Error(message);
+          }
+
+          const contentType = (res.headers.get('content-type') || '').toLowerCase();
+          if (!contentType.includes('application/pdf')) {
+            throw new Error(`Backend returned ${contentType || 'an unknown content type'} instead of PDF.`);
+          }
+
+          const bytes = new Uint8Array(await res.arrayBuffer());
+          if (bytes.length < 1000) {
+            throw new Error(`Downloaded PDF is empty or incomplete (${bytes.length} bytes).`);
+          }
+
+          const signature = String.fromCharCode(...bytes.slice(0, 5));
+          if (signature !== '%PDF-') {
+            throw new Error('Downloaded file is not a valid PDF.');
+          }
+
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          const objectUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = objectUrl;
+          link.download = data.preview_filename || 'powerbi_chunk_visualizer_preview.pdf';
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.setTimeout(() => URL.revokeObjectURL(objectUrl), 3000);
+        } catch (error) {
+          console.error('Preview PDF download failed:', error);
+          setErr(error?.message || 'Preview PDF download failed.');
+        } finally {
+          setPdfBusy(false);
+        }
+      };
+
+      const anyBusy = busy || pdfBusy;
+      const hasSelectedFiles = Boolean(file || ssFile || tmdlFile);
+      const statusTxt = busy
+        ? 'Processing…'
+        : pdfBusy
+          ? 'Preparing PDF…'
+          : data
+            ? 'Completed'
+            : hasSelectedFiles
+              ? 'Files selected'
+              : 'Idle';
+      const statusCls = busy || pdfBusy
+        ? 'processing'
+        : data
+          ? 'success'
+          : hasSelectedFiles
+            ? 'uploaded'
+            : 'idle';
+
+      const tabs = [
+        { id: 'analysis', label: 'Analysis', n: ct.analysis },
+        { id: 'tables', label: 'Tables', n: ct.tables },
+        { id: 'relationships', label: 'Relations', n: ct.relationships },
+        { id: 'formulas', label: 'Formulas', n: ct.formulas },
+        { id: 'visuals', label: 'Visuals', n: ct.visuals },
+        { id: 'descriptions', label: 'Descriptions', n: ct.descriptions },
+        { id: 'raw', label: 'Raw JSON', n: null },
+      ];
+
+      return (
+        <div className="shell" data-mode={mode}>
+          <header className="topbar">
+            <div className="logo-mark">
+              <svg className="logo-svg" viewBox="0 0 15 15" fill="none">
+                <rect x="1" y="1" width="5" height="5" rx="1" fill="rgba(201,168,76,.6)" />
+                <rect x="9" y="1" width="5" height="5" rx="1" fill="rgba(201,168,76,.4)" />
+                <rect x="1" y="9" width="5" height="5" rx="1" fill="rgba(201,168,76,.4)" />
+                <rect x="9" y="9" width="5" height="5" rx="1" fill="rgba(201,168,76,.8)" />
+              </svg>
+            </div>
+
+            <div className="topbar-brand">
+              <div className="brand-name">Conversion Studio</div>
+              <div className="brand-tagline">Power BI → Excel pipeline</div>
+            </div>
+
+            <div className="topbar-divider" />
+            <div className="topbar-badge">PBIX → XLSX</div>
+            <div className="topbar-spacer" />
+
+            <div className="theme-tools" aria-label="Appearance controls">
+              <button
+                className="mode-toggle"
+                type="button"
+                onClick={() => setMode((current) => current === 'dark' ? 'light' : 'dark')}
+                aria-label={`Switch to ${mode === 'dark' ? 'light' : 'dark'} mode`}
+                title={`Switch to ${mode === 'dark' ? 'light' : 'dark'} mode`}
+              >
+                <span className="mode-symbol" aria-hidden="true">{mode === 'dark' ? '☀' : '☾'}</span>
+                <span className="mode-label">{mode === 'dark' ? 'Light' : 'Dark'}</span>
+              </button>
+            </div>
+
+            <div className={`status-pill ${statusCls}`}>
+              <span className={`status-dot ${statusCls}`} />
+              {statusTxt}
+            </div>
+          </header>
+
+          <aside className="left">
+            <div className="left-scroll">
+              <div className="card span2">
+                <div className="card-head">
+                  <span className="card-title">Workbook Summary</span>
+                </div>
+                <div className="card-body">
+                  <div className="summary-grid">
+                    <div className="sum-card">
+                      <div className="sum-n">{ct.tables}</div>
+                      <div className="sum-lbl">Tables</div>
+                    </div>
+                    <div className="sum-card">
+                      <div className="sum-n">{ct.relationships}</div>
+                      <div className="sum-lbl">Relations</div>
+                    </div>
+                    <div className="sum-card">
+                      <div className="sum-n">{ct.formulas}</div>
+                      <div className="sum-lbl">Formulas</div>
+                    </div>
+                    <div className="sum-card">
+                      <div className="sum-n">{ct.visuals}</div>
+                      <div className="sum-lbl">Visuals</div>
+                    </div>
+                  </div>
+
+                  <button
+                    className="btn-dl"
+                    onClick={downloadPreview}
+                    disabled={!data || pdfBusy}
+                    style={{ opacity: !data ? 0.42 : 1, cursor: !data ? 'not-allowed' : 'pointer' }}
+                  >
+                    {pdfBusy ? <span className="spin" /> : <Ico id="dl" size={14} />}
+                    {pdfBusy ? 'Downloading PDF…' : 'Download Preview PDF'}
+                  </button>
+
+                  {!data && (
+                    <p className="helper-note">
+                      Analyze the three required files, then open Excel and connect the published Power BI semantic model.
+                    </p>
+                  )}
+
+                  {data && (
+                    <div className="ready-note">
+                      Analysis complete. The Live Excel download becomes available after the live connection finishes successfully.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-head">
+                  <span className="card-title">Power BI Source</span>
+                  <span className="badge-req">Required</span>
+                </div>
+                <div className="card-body">
+                  <div
+                    className={`drop-zone ${over ? 'over' : ''} ${file ? 'has' : ''}`}
+                    onClick={() => ref.current?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setOver(true);
+                    }}
+                    onDragLeave={() => setOver(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setOver(false);
+                      pickFile(e.dataTransfer.files?.[0]);
+                    }}
+                  >
+                    <input
+                      ref={ref}
+                      type="file"
+                      accept=".pbix"
+                      style={{ display: 'none' }}
+                      onChange={(e) => pickFile(e.target.files?.[0])}
+                    />
+                    <div className="drop-icon">
+                      <Ico id="upload" size={18} />
+                    </div>
+                    <div className="drop-label">
+                      {file ? 'File selected' : 'Drop .pbix or click to browse'}
+                    </div>
+                    <div className="drop-sub">
+                      {file ? 'Click to replace' : 'Accepts .pbix only'}
+                    </div>
+                    {file && <div className="drop-filename">{file.name}</div>}
+                  </div>
+
+                  <button className="btn-run" onClick={run} disabled={!file || !ssFile || !tmdlFile || busy}>
+                    {busy && <span className="spin" />}
+                    {busy ? 'Analyzing…' : 'Analyze Files & Prepare Live Connection'}
+                    {!busy && <Ico id="bolt" size={13} />}
+                  </button>
+
+                  {(file || ssFile || tmdlFile) && (
+                    <button className="btn-clear" onClick={clearAll} disabled={anyBusy}>
+                      <Ico id="x" size={12} /> Clear all files
+                    </button>
+                  )}
+
+                  {err && <div className="error-box">{err}</div>}
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-head">
+                  <span className="card-title">Dashboard Screenshot</span>
+                  <span className="badge-req">Required</span>
+                </div>
+                <div className="card-body">
+                  <div
+                    className={`drop-zone ${ssOver ? 'over' : ''} ${ssFile ? 'has' : ''}`}
+                    onClick={() => ssRef.current?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setSsOver(true);
+                    }}
+                    onDragLeave={() => setSsOver(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setSsOver(false);
+                      pickSs(e.dataTransfer.files?.[0]);
+                    }}
+                  >
+                    <input
+                      ref={ssRef}
+                      type="file"
+                      accept=".png,.jpg,.jpeg,.webp"
+                      style={{ display: 'none' }}
+                      onChange={(e) => pickSs(e.target.files?.[0])}
+                    />
+                    {!ssPrev ? (
+                      <>
+                        <div className="drop-icon">
+                          <Ico id="img" size={18} />
+                        </div>
+                        <div className="drop-label">Add screenshot for theme matching</div>
+                        <div className="drop-sub">png · jpg · jpeg · webp</div>
+                      </>
+                    ) : (
+                      <div className="img-preview">
+                        <img src={ssPrev} alt="Preview" />
+                        <div className="drop-filename">{ssFile.name}</div>
+                        <button className="img-remove" onClick={removeSs} type="button">✕</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-head">
+                  <span className="card-title">Model Metadata / TMDL</span>
+                  <span className="badge-req">Required</span>
+                </div>
+                <div className="card-body">
+                  <div
+                    className={`drop-zone ${tmdlOver ? 'over' : ''} ${tmdlFile ? 'has' : ''}`}
+                    onClick={() => tmdlRef.current?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setTmdlOver(true);
+                    }}
+                    onDragLeave={() => setTmdlOver(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setTmdlOver(false);
+                      pickTmdl(e.dataTransfer.files?.[0]);
+                    }}
+                  >
+                    <input
+                      ref={tmdlRef}
+                      type="file"
+                      accept=".tmdl,.txt,.json"
+                      style={{ display: 'none' }}
+                      onChange={(e) => pickTmdl(e.target.files?.[0])}
+                    />
+                    <div className="drop-icon">
+                      <Ico id="upload" size={18} />
+                    </div>
+                    <div className="drop-label">
+                      {tmdlFile ? 'TMDL metadata selected' : 'Add TMDL/model metadata'}
+                    </div>
+                    <div className="drop-sub">
+                      {tmdlFile ? 'Click to replace' : 'tmdl · txt · json'}
+                    </div>
+                    {tmdlFile && (
+                      <div className="drop-filename" style={{ marginTop: 10, position: 'relative', paddingRight: 26 }}>
+                        {tmdlFile.name}
+                        <button
+                          className="img-remove"
+                          onClick={removeTmdl}
+                          type="button"
+                          style={{ top: -6, right: -6 }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-head">
+                  <span className="card-title">Pipeline</span>
+                </div>
+                <div className="card-body">
+                  <div className="steps">
+                    <StepRow n="01" label="Read PBIX, screenshot & TMDL" st={steps.a} />
+                    <StepRow n="02" label="Analyze visuals & model fields" st={steps.b} />
+                    <StepRow n="03" label="Prepare preview & live session" st={steps.c} />
+                    <StepRow n="04" label="Ready to open Excel" st={steps.d} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Connect Workflow Card */}
+              {data && !data.has_live_excel_workbook && (
+                <div className="card span2">
+                  <div className="card-head">
+                    <span className="card-title">Live Power BI Connection</span>
+                    <span className={`badge-${liveConnectState === 'completed_live' ? 'req' : 'opt'}`}>
+                      {liveConnectState === 'completed_live' ? 'LIVE Connected' : 'Interactive'}
+                    </span>
+                  </div>
+                  <div className="card-body">
+                    {!liveConnectState && (
+                      <>
+                        <p className="helper-note" style={{ marginBottom: 12 }}>
+                          Metadata analysis is complete. Open Excel, select the published Power BI semantic model, and let the application build the live-connected dashboard.
+                        </p>
+                        <button
+                          className="btn-run"
+                          onClick={startLiveConnect}
+                          disabled={anyBusy || liveBusy}
+                        >
+                          <Ico id="bolt" size={13} /> Open Excel &amp; Connect Live
+                        </button>
+                      </>
+                    )}
+
+                    {liveConnectState === 'excel_launching' && (
+                      <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                        <span className="spin" style={{ display: 'inline-block', marginBottom: 8 }} />
+                        <div className="drop-label">Launching Excel visibly...</div>
+                      </div>
+                    )}
+
+                    {(liveConnectState === 'waiting_for_user_connection' ||
+                      liveConnectState === 'connection_not_detected' ||
+                      liveConnectState === 'semantic_model_mismatch') && (
+                        <div>
+                          <div className="ready-note" style={{ background: 'rgba(201, 168, 76, 0.1)', color: 'var(--gold2)', marginBottom: 12, borderLeft: '3px solid var(--gold)' }}>
+                            <strong>Excel is open. Please:</strong>
+                            <ol style={{ paddingLeft: 16, marginTop: 4, fontSize: 12, lineHeight: 1.5 }}>
+                              <li>Sign in to your Microsoft account in Excel if prompted.</li>
+                              <li>Go to <strong>Insert &gt; PivotTable &gt; From Power BI</strong>.</li>
+                              <li>Select your published Power BI semantic model.</li>
+                              <li>Once the empty PivotTable is created, click <strong>Continue</strong> below.</li>
+                            </ol>
+                          </div>
+
+                          {liveConnectState === 'connection_not_detected' && (
+                            <div className="error-box" style={{ marginBottom: 12 }}>
+                              No Power BI PivotTable connection detected in Excel. Please try inserting the PivotTable and clicking Continue again.
+                            </div>
+                          )}
+
+                          {liveConnectState === 'semantic_model_mismatch' && (
+                            <div className="error-box" style={{ marginBottom: 12 }}>
+                              The selected Power BI model does not match this PBIX metadata (Match Score: {liveMatchScore !== null ? (liveMatchScore * 100).toFixed(0) : '0'}%). Please delete the PivotTable, insert a PivotTable from the correct model, and click Continue again.
+                            </div>
+                          )}
+
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                              className="btn-run"
+                              onClick={continueLiveConnect}
+                              style={{ flex: 1 }}
+                              disabled={liveBusy}
+                            >
+                              {liveBusy ? <span className="spin" /> : <Ico id="bolt" size={13} />}
+                              Continue
+                            </button>
+                            <button
+                              className="btn-clear"
+                              onClick={cancelLiveConnect}
+                              style={{ border: '1px solid var(--rose)', color: 'var(--rose)' }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                    {['detecting_connection', 'connection_detected', 'validating_semantic_model', 'building', 'refreshing', 'saving', 'verifying'].includes(liveConnectState) && (
+                      <div style={{ padding: '8px 0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                          <span className="spin" />
+                          <div className="drop-label" style={{ textTransform: 'capitalize' }}>
+                            {liveConnectState.replace(/_/g, ' ')}...
+                          </div>
+                        </div>
+                        <div className="steps">
+                          <StepRow n="01" label="Detect Power BI connection" st={liveConnectState === 'detecting_connection' ? 'running' : 'done'} />
+                          <StepRow n="02" label="Validate semantic model" st={liveConnectState === 'validating_semantic_model' ? 'running' : ['building', 'refreshing', 'saving', 'verifying', 'completed_live'].includes(liveConnectState) ? 'done' : 'pending'} />
+                          <StepRow n="03" label={`Build PivotTables & visuals (${livePivotCount} created)`} st={liveConnectState === 'building' ? 'running' : ['refreshing', 'saving', 'verifying', 'completed_live'].includes(liveConnectState) ? 'done' : 'pending'} />
+                          <StepRow n="04" label="Refresh data queries" st={liveConnectState === 'refreshing' ? 'running' : ['saving', 'verifying', 'completed_live'].includes(liveConnectState) ? 'done' : 'pending'} />
+                          <StepRow n="05" label="Save &amp; Verify workbook" st={['saving', 'verifying'].includes(liveConnectState) ? 'running' : liveConnectState === 'completed_live' ? 'done' : 'pending'} />
+                        </div>
+                      </div>
+                    )}
+
+                    {liveConnectState === 'completed_live' && (
+                      <div>
+                        <div className="ready-note" style={{ background: 'var(--teal-dim)', color: 'var(--teal)', borderLeft: '3px solid var(--teal)', marginBottom: 12 }}>
+                          <strong>Success! Live Connection Completed.</strong>
+                          <div style={{ fontSize: 12, marginTop: 4 }}>
+                            Workbook successfully upgraded to LIVE connection. Match Score: {liveMatchScore !== null ? (liveMatchScore * 100).toFixed(0) : '100'}%.
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            className="btn-run"
+                            onClick={downloadLiveExcel}
+                            style={{ flex: 1, background: 'var(--teal)', color: 'var(--ink)' }}
+                          >
+                            <Ico id="dl" size={13} /> Download Live Excel
+                          </button>
+                          <button
+                            className="btn-clear"
+                            onClick={downloadLiveReport}
+                          >
+                            Report
+                          </button>
+                        </div>
+                        <button
+                          className="btn-clear"
+                          onClick={resetLiveConnectState}
+                          style={{ marginTop: 8, width: '100%', fontSize: 11 }}
+                        >
+                          Reset Connection State
+                        </button>
+                      </div>
+                    )}
+
+                    {['live_conversion_failed', 'cancelled', 'error'].includes(liveConnectState) && (
+                      <div>
+                        <div className="error-box" style={{ marginBottom: 12 }}>
+                          Live connection failed or was cancelled. State: {liveConnectState}. {liveErr && <div>Error: {liveErr}</div>}
+                        </div>
+                        <button
+                          className="btn-run"
+                          onClick={resetLiveConnectState}
+                        >
+                          Retry Connection
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </aside>
+
+          <main className="right">
+            <div className="viewer-head">
+              <div className="viewer-title-wrap">
+                <div className="workspace-kicker">Conversion workspace</div>
+                <div className="viewer-title">Report Analysis &amp; Preview</div>
+                <div className="viewer-sub">
+                  {data
+                    ? 'Conversion complete — browse converted chunks below'
+                    : 'Waiting for PBIX upload and processing'}
+                </div>
+              </div>
+              <button
+                className="btn-dl-top"
+                onClick={downloadPreview}
+                disabled={!data || pdfBusy}
+                style={{ opacity: !data ? 0.4 : 1, cursor: !data ? 'not-allowed' : 'pointer' }}
+              >
+                {pdfBusy ? <span className="spin" /> : <Ico id="dl" size={13} />}
+                {pdfBusy ? 'PDF…' : 'Download PDF'}
+              </button>
+            </div>
+
+            <nav className="tab-bar">
+              {tabs.map((t) => (
+                <button
+                  key={t.id}
+                  className={`tab ${tab === t.id ? 'active' : ''}`}
+                  onClick={() => setTab(t.id)}
+                >
+                  {t.label}
+                  {t.n !== null && <span className="tab-cnt">{t.n}</span>}
+                </button>
+              ))}
+            </nav>
+
+            <div className="content">
+              <Preview data={data} tab={tab} />
+            </div>
+            <footer className="app-footer">
+              <div className="footer-left">
+                <span className="footer-dot" />
+                <span>Conversion Studio · Power BI to Excel workspace</span>
+              </div>
+              <div className="footer-right">
+                <span>{data ? `Session ${data.session_id || 'ready'}` : 'No active session'}</span>
+              </div>
+            </footer>
+          </main>
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+
+</html>
