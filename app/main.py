@@ -122,9 +122,6 @@ TEMP_DIR.mkdir(parents=True, exist_ok=True)
 MAX_UPLOAD_SIZE_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", str(100 * 1024 * 1024)))
 TEMP_EXPIRY_SECONDS = int(os.getenv("TEMP_EXPIRY_SECONDS", str(60 * 60)))
 # Local and hosted frontend origins.
-#
-# Add extra production/preview origins through:
-# CORS_ORIGINS=https://frontend-one.vercel.app,https://frontend-two.vercel.app
 LOCAL_CORS_ORIGINS = [
     "http://127.0.0.1:8000",
     "http://localhost:8000",
@@ -155,17 +152,13 @@ ALLOWED_ORIGINS = list(
     )
 )
 
-# Allows Vercel preview deployments such as:
-# https://conversion-studio-abc123.vercel.app
-VERCEL_ORIGIN_REGEX = r"^https://conversion-studio(?:-[a-zA-Z0-9-]+)?\.vercel\.app$"
-
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=VERCEL_ORIGIN_REGEX,
+    allow_origin_regex=r"^https://conversion-studio(?:-[a-zA-Z0-9-]+)?\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
@@ -174,7 +167,6 @@ app.add_middleware(
         "X-PDF-Page-Count",
         "X-PDF-File-Size",
     ],
-    max_age=86400,
 )
 
 
@@ -338,12 +330,6 @@ async def process_upload_file(
     base_template: Optional[UploadFile] = None,
     tmdl_metadata: Optional[UploadFile] = None,
 ):
-    """
-    Full PBIX upload pipeline with graceful fallback for layout-only PBIX files.
-
-    Returns 422 for known PBIX structural limitations (missing DataModelSchema/Layout).
-    Returns 500 only for unexpected server errors.
-    """
     cleanup_old_temp_files()
 
     session_id = str(uuid.uuid4())
@@ -603,7 +589,6 @@ async def process_upload_file(
             extraction_mode,
         )
 
-        # ── Step 6: Return response ──────────────────────────────────────
         return JSONResponse(
             {
                 "session_id": session_id,
@@ -638,13 +623,11 @@ async def process_upload_file(
         raise
 
     except ValueError as e:
-        # Known PBIX structural limitation — return 422 Unprocessable Entity
         safe_delete_dir(work_dir)
         logger.warning("PBIX processing validation failed: %s", e)
         raise HTTPException(status_code=422, detail=f"Processing failed: {str(e)}")
 
     except Exception as e:
-        # Unexpected server error — return 500
         safe_delete_dir(work_dir)
         logger.exception("Upload processing failed")
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
@@ -653,12 +636,18 @@ async def process_upload_file(
 # ── Routes ───────────────────────────────────────────────────────────────────
 
 
-@app.get("/")
+@app.get("/", response_class=Optional[HTMLResponse])
 def read_root():
+    try:
+        if ROOT_INDEX.exists():
+            return HTMLResponse(content=ROOT_INDEX.read_text(encoding="utf-8"))
+        elif TEMPLATES_INDEX.exists():
+            return HTMLResponse(content=TEMPLATES_INDEX.read_text(encoding="utf-8"))
+    except Exception:
+        pass
     return {
         "status": "running",
         "app": "Conversion Studio API",
-        "message": "Backend API is running successfully.",
         "frontend": "https://conversion-studio-wj1p.vercel.app",
         "health": "/api/health",
         "docs": "/docs",
@@ -675,7 +664,7 @@ def api_root():
         "upload_endpoints": ["/upload", "/api/upload"],
         "health_endpoints": ["/health", "/api/health"],
         "cors_origins": ALLOWED_ORIGINS,
-        "cors_origin_regex": VERCEL_ORIGIN_REGEX,
+        "cors_origin_regex": r"^https://conversion-studio(?:-[a-zA-Z0-9-]+)?\.vercel\.app$",
     }
 
 
@@ -684,14 +673,68 @@ def api_root():
 def health():
     return {
         "status": "running",
-        "app": "Power BI PBIX to Excel Converter",
-        "temp_dir": str(TEMP_DIR),
-        "max_upload_size_bytes": MAX_UPLOAD_SIZE_BYTES,
-        "cors_origins": ALLOWED_ORIGINS,
         "platform": platform.system(),
         "live_connect_available": LIVE_CONNECT_AVAILABLE,
         "live_connect_unavailable_reason": LIVE_CONNECT_UNAVAILABLE_REASON,
+        "standard_conversion_available": True,
+        "deployment_mode": (
+            "local_windows"
+            if platform.system() == "Windows"
+            else "hosted_linux"
+        ),
     }
+
+
+@app.get("/api/system-check")
+@app.get("/system-check")
+def system_check():
+    if platform.system() == "Windows":
+        pythoncom_ok = False
+        win32com_ok = False
+        excel_com_ok = False
+        version = "unknown"
+        try:
+            import pythoncom
+            pythoncom_ok = True
+        except Exception:
+            pass
+        try:
+            import win32com.client
+            win32com_ok = True
+        except Exception:
+            pass
+
+        if win32com_ok:
+            try:
+                pythoncom.CoInitialize()
+                excel = win32com.client.DispatchEx("Excel.Application")
+                version = str(excel.Version)
+                excel.Quit()
+                excel_com_ok = True
+            except Exception as e:
+                logger.error("system-check Excel dispatch failed: %s", e)
+            finally:
+                try:
+                    pythoncom.CoUninitialize()
+                except Exception:
+                    pass
+
+        return {
+            "platform": "Windows",
+            "pythoncom": pythoncom_ok,
+            "win32com": win32com_ok,
+            "excel_com": excel_com_ok,
+            "excel_version": version,
+            "live_connect_available": LIVE_CONNECT_AVAILABLE and excel_com_ok
+        }
+    else:
+        return {
+            "platform": platform.system(),
+            "pythoncom": False,
+            "win32com": False,
+            "excel_com": False,
+            "live_connect_available": False
+        }
 
 
 @app.get("/api/hf-status")
@@ -854,6 +897,15 @@ def download_json(session_id: str):
 
 
 def _require_live_connect():
+    if platform.system() != "Windows":
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "LIVE_CONNECT_REQUIRES_WINDOWS",
+                "message": "Live Connect requires the local Windows backend.",
+                "platform": platform.system(),
+            }
+        )
     if (
         not LIVE_CONNECT_AVAILABLE
         or session_manager is None
@@ -870,25 +922,26 @@ def _require_live_connect():
         )
         if LIVE_CONNECT_UNAVAILABLE_REASON:
             detail += f" Reason: {LIVE_CONNECT_UNAVAILABLE_REASON}"
-        raise HTTPException(status_code=503, detail=detail)
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "LIVE_CONNECT_REQUIRES_WINDOWS",
+                "message": detail,
+                "platform": platform.system(),
+            }
+        )
 
 
 @app.post("/api/live-connect/start")
 @app.post("/live-connect/start")
 def live_connect_start(body: dict = Body(default={})):
-    """Launch Excel visibly and wait for the user to connect a Power BI model.
-
-    Expects JSON body: {"session_id": "<id from prior /upload call>"}
-    If an active live session already exists for this upload session, returns
-    its current state without launching a new Excel window.
-    """
+    """Launch Excel visibly and wait for the user to connect a Power BI model."""
     _require_live_connect()
 
     upload_session_id = str(body.get("session_id") or "").strip()
     if not upload_session_id:
         raise HTTPException(status_code=400, detail="session_id is required.")
 
-    # --- Prevent duplicate sessions for the same upload ---------------------
     existing_session = session_manager.get_active_session_by_upload_id(
         upload_session_id
     )
@@ -926,14 +979,12 @@ def live_connect_start(body: dict = Body(default={})):
             status_code=500, detail=f"Could not read upload metadata: {exc}"
         )
 
-    # Derive visual bindings from the chunks
     visual_bindings = []
     try:
         visual_bindings = create_all_visual_bindings(final_chunks)
     except Exception as exc:
         logger.warning("create_all_visual_bindings failed: %s", exc)
 
-    # Output path for the live workbook
     live_session_id = str(uuid.uuid4())
     live_out_dir = work_dir
     live_out_dir.mkdir(parents=True, exist_ok=True)
@@ -948,10 +999,7 @@ def live_connect_start(body: dict = Body(default={})):
         upload_session_id=upload_session_id,
     )
 
-    # Store mapping so /download-live can find the file
     _LIVE_SESSION_MAP[live_session_id] = output_path
-
-    # Dispatch Excel launch to the COM thread (non-blocking)
     session.dispatch(lambda: launch_excel_for_connection(session), wait=False)
 
     logger.info(
@@ -977,14 +1025,12 @@ def live_connect_start(body: dict = Body(default={})):
     )
 
 
-# In-memory map: live_session_id -> output file path
 _LIVE_SESSION_MAP: dict = {}
 
 
 @app.get("/api/live-connect/{session_id}/status")
 @app.get("/live-connect/{session_id}/status")
 def live_connect_status(session_id: str):
-    """Return the current state and progress counters for a live-connect session."""
     _require_live_connect()
     safe_id = os.path.basename(session_id)
     session = session_manager.get_session(safe_id)
@@ -996,12 +1042,6 @@ def live_connect_status(session_id: str):
 @app.post("/api/live-connect/{session_id}/continue")
 @app.post("/live-connect/{session_id}/continue")
 def live_connect_continue(session_id: str):
-    """User clicked 'Connection Completed'.
-
-    Transitions the session to detecting_connection and enqueues the compound
-    detect+validate+build workflow on the COM thread.  Returns immediately with
-    state=detecting_connection so the frontend can start polling /status.
-    """
     _require_live_connect()
     safe_id = os.path.basename(session_id)
     session = session_manager.get_session(safe_id)
@@ -1059,7 +1099,6 @@ def live_connect_continue(session_id: str):
 @app.post("/api/live-connect/{session_id}/cancel")
 @app.post("/live-connect/{session_id}/cancel")
 def live_connect_cancel(session_id: str):
-    """Cancel a live-connect session and close only its Excel instance."""
     _require_live_connect()
     safe_id = os.path.basename(session_id)
     found = session_manager.cancel_session(safe_id)
@@ -1071,7 +1110,6 @@ def live_connect_cancel(session_id: str):
 @app.get("/api/live-connect/{session_id}/report")
 @app.get("/live-connect/{session_id}/report")
 def live_connect_report(session_id: str):
-    """Return the full JSON conversion report for a completed live session."""
     _require_live_connect()
     safe_id = os.path.basename(session_id)
     session = session_manager.get_session(safe_id)
@@ -1104,7 +1142,6 @@ def live_connect_report(session_id: str):
 @app.get("/api/live-connect/{session_id}/download")
 @app.get("/live-connect/{session_id}/download")
 def download_live_excel(session_id: str):
-    """Download the live-connected Excel workbook for a completed session."""
     _require_live_connect()
     safe_id = os.path.basename(session_id)
     session = session_manager.get_session(safe_id)
@@ -1136,5 +1173,4 @@ def download_live_excel(session_id: str):
 @app.get("/api/download-live/{session_id}")
 @app.get("/download-live/{session_id}")
 def download_live_excel_legacy(session_id: str):
-    """Legacy download endpoint — redirects to /live-connect/{id}/download."""
     return download_live_excel(session_id)

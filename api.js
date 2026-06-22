@@ -1,66 +1,25 @@
-// api.js
-
-// ─── 1. Backend URLs ────────────────────────────────────────────────────────
-
 const LOCAL_API_URL = "http://127.0.0.1:8000";
+const HOSTED_API_URL = "https://conversion-studio-five.vercel.app";
 
-const ONLINE_API_URL =
-    "https://conversion-studio-five.vercel.app";
+const IS_LOCAL_WINDOWS_MODE =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
 
-
-// ─── 2. Detect local or hosted frontend ─────────────────────────────────────
-
-const _hostname = window.location.hostname;
-
-const _isLocal =
-    _hostname === "localhost" ||
-    _hostname === "127.0.0.1";
-
-
-// ─── 3. Select backend ──────────────────────────────────────────────────────
-
-const API_BASE = (
-    _isLocal
-        ? LOCAL_API_URL
-        : ONLINE_API_URL
-)
-    .trim()
-    .replace(/\/+$/, "");
-
-
-// ─── 4. Build API URL ───────────────────────────────────────────────────────
+const API_BASE = IS_LOCAL_WINDOWS_MODE
+    ? LOCAL_API_URL
+    : HOSTED_API_URL;
 
 function apiURL(path) {
-    const normalizedPath = String(path || "").startsWith("/")
-        ? String(path)
-        : `/${String(path || "")}`;
+    const normalizedPath = path.startsWith("/")
+        ? path
+        : `/${path}`;
 
     return `${API_BASE}${normalizedPath}`;
 }
 
-
-// ─── 5. Export values to index.html ─────────────────────────────────────────
-
+// Export to global window namespace
+window.LOCAL_API_URL = LOCAL_API_URL;
+window.HOSTED_API_URL = HOSTED_API_URL;
+window.IS_LOCAL_WINDOWS_MODE = IS_LOCAL_WINDOWS_MODE;
 window.API_BASE = API_BASE;
 window.apiURL = apiURL;
-
-
-/*
- * Live Connect is available only when the application is running locally.
- *
- * Local Windows:
- * true
- *
- * Hosted Vercel:
- * false
- */
-window.LIVE_CONNECT_AVAILABLE = _isLocal;
-
-
-// ─── 6. Debug information ───────────────────────────────────────────────────
-
-console.info(
-    "%c[Conversion Studio] API",
-    "color:#c9a84c;font-weight:700",
-    `→ ${API_BASE} ${_isLocal ? "(local Windows mode)" : "(hosted conversion mode)"}`
-);
