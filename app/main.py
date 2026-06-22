@@ -636,7 +636,7 @@ async def process_upload_file(
 # ── Routes ───────────────────────────────────────────────────────────────────
 
 
-@app.get("/", response_class=Optional[HTMLResponse])
+@app.get("/")
 def read_root():
     try:
         if ROOT_INDEX.exists():
