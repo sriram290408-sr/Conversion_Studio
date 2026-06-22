@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Body
+from fastapi import FastAPI, UploadFile, File, HTTPException, Body, Request
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -168,6 +168,24 @@ app.add_middleware(
         "X-PDF-File-Size",
     ],
 )
+
+
+@app.middleware("http")
+async def local_agent_headers(request: Request, call_next):
+    """Allow the hosted Vercel UI to use this loopback Windows agent.
+
+    Chrome may preflight public-to-local requests. The additional private-network
+    response header is only emitted when the browser explicitly requests it.
+    """
+    response = await call_next(request)
+    if (
+        request.headers.get("access-control-request-private-network", "").lower()
+        == "true"
+    ):
+        response.headers["Access-Control-Allow-Private-Network"] = "true"
+    response.headers["X-Conversion-Studio-Agent"] = "windows-local"
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 def safe_delete_dir(path: Path) -> None:
@@ -678,10 +696,12 @@ def health():
         "live_connect_unavailable_reason": LIVE_CONNECT_UNAVAILABLE_REASON,
         "standard_conversion_available": True,
         "deployment_mode": (
-            "local_windows"
-            if platform.system() == "Windows"
-            else "hosted_linux"
+            "local_windows" if platform.system() == "Windows" else "hosted_linux"
         ),
+        "agent_role": (
+            "windows_local_agent" if platform.system() == "Windows" else "cloud_api"
+        ),
+        "agent_version": "1.0.0",
     }
 
 
@@ -695,11 +715,13 @@ def system_check():
         version = "unknown"
         try:
             import pythoncom
+
             pythoncom_ok = True
         except Exception:
             pass
         try:
             import win32com.client
+
             win32com_ok = True
         except Exception:
             pass
@@ -725,7 +747,7 @@ def system_check():
             "win32com": win32com_ok,
             "excel_com": excel_com_ok,
             "excel_version": version,
-            "live_connect_available": LIVE_CONNECT_AVAILABLE and excel_com_ok
+            "live_connect_available": LIVE_CONNECT_AVAILABLE and excel_com_ok,
         }
     else:
         return {
@@ -733,7 +755,7 @@ def system_check():
             "pythoncom": False,
             "win32com": False,
             "excel_com": False,
-            "live_connect_available": False
+            "live_connect_available": False,
         }
 
 
@@ -904,7 +926,7 @@ def _require_live_connect():
                 "code": "LIVE_CONNECT_REQUIRES_WINDOWS",
                 "message": "Live Connect requires the local Windows backend.",
                 "platform": platform.system(),
-            }
+            },
         )
     if (
         not LIVE_CONNECT_AVAILABLE
@@ -928,7 +950,7 @@ def _require_live_connect():
                 "code": "LIVE_CONNECT_REQUIRES_WINDOWS",
                 "message": detail,
                 "platform": platform.system(),
-            }
+            },
         )
 
 

@@ -1365,6 +1365,78 @@ def _resolve_visual_type(
     return raw_type or "clusteredcolumnchart"
 
 
+def save_workbook_safely(excel: Any, workbook: Any, output_path_str: str, session: Any) -> Path:
+    import pywintypes
+    output_path = Path(output_path_str).expanduser().resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    ext = output_path.suffix.lower()
+    file_format = 51
+    if ext == ".xlsm":
+        file_format = 52
+    elif ext == ".xlsb":
+        file_format = 50
+        
+    logger.info("Starting workbook save: %s", output_path)
+    
+    try:
+        if hasattr(excel, "CalculateUntilAsyncQueriesDone"):
+            excel.CalculateUntilAsyncQueriesDone()
+    except Exception:
+        pass
+        
+    try:
+        for _ in range(20):
+            if int(getattr(excel, "CalculationState", 0)) == 0:
+                break
+            time.sleep(0.5)
+    except Exception:
+        pass
+
+    try:
+        com_call = _import_com_retry()
+        com_call(lambda: setattr(excel, "DisplayAlerts", False))
+    except Exception:
+        pass
+
+    last_exc = None
+    for attempt in range(1, 4):
+        try:
+            current_path = Path(com_call(lambda: workbook.FullName)).resolve()
+            if current_path == output_path:
+                com_call(lambda: workbook.Save(), label="workbook.Save")
+            else:
+                com_call(lambda: workbook.SaveAs(
+                    Filename=str(output_path),
+                    FileFormat=file_format,
+                    AddToMru=False,
+                    Local=True,
+                ), label="workbook.SaveAs")
+            break
+        except Exception as exc:
+            last_exc = exc
+            logger.warning(
+                "Excel save attempt %s failed; retrying: %s",
+                attempt,
+                exc,
+            )
+            time.sleep(2)
+    else:
+        raise RuntimeError(f"Failed to save workbook after 3 attempts: {last_exc}")
+
+    for _ in range(20):
+        if output_path.exists() and output_path.stat().st_size > 0:
+            break
+        time.sleep(0.5)
+    else:
+        raise RuntimeError(
+            f"Excel reported save completion but output file was not created: {output_path}"
+        )
+
+    logger.info("Workbook save completed: %s size=%d", output_path, output_path.stat().st_size)
+    return output_path
+
+
 def build_live_dashboard(session: Any) -> Dict[str, Any]:
     """Build the full live dashboard: PivotTables, charts, slicers, KPIs.
 
@@ -1914,6 +1986,7 @@ def build_live_dashboard(session: Any) -> Dict[str, Any]:
             if visible_render.get("status") in {"success", "live_approximation"}:
                 if vtype not in _TABLE_TYPES:
                     session.pivot_charts_created += 1
+                rendered_visual_ids.add(visual_id)
             else:
                 warnings.append(
                     f"Visual renderer failed for '{title}': "
@@ -2076,7 +2149,7 @@ def build_live_dashboard(session: Any) -> Dict[str, Any]:
     session.update_state("saving")
     output_path = session.output_path
     try:
-        com_call(lambda: workbook.SaveAs(output_path, 51), label="SaveAs output")
+        save_workbook_safely(excel, workbook, output_path)
         logger.info("Session %s: workbook saved to %s", session.session_id, output_path)
         try:
             com_call(lambda: setattr(excel, "DisplayAlerts", True))

@@ -114,6 +114,14 @@ class COMSession:
     warnings: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
 
+    current_stage: str = "initializing_com"
+    error_stage: Optional[str] = None
+    error_type: Optional[str] = None
+    error_message: Optional[str] = None
+    error_trace_id: Optional[str] = None
+    progress: int = 0
+    message: str = ""
+
     created_at: float = field(default_factory=time.monotonic)
     last_activity: float = field(default_factory=time.monotonic)
 
@@ -191,6 +199,19 @@ class COMSession:
         return {
             "session_id": self.session_id,
             "state": self.state,
+            "current_stage": self.current_stage,
+            "error_stage": self.error_stage,
+            "error_type": self.error_type,
+            "error_message": self.error_message,
+            "error_trace_id": self.error_trace_id,
+            "progress": self.progress,
+            "message": self.message,
+            "output_available": self.state == "completed_live",
+            "download_url": (
+                f"/api/live-connect/{self.session_id}/download"
+                if self.state == "completed_live"
+                else None
+            ),
             "pivot_tables_created": self.pivot_tables_created,
             "pivot_tables_reused": self.pivot_tables_reused,
             "pivot_charts_created": self.pivot_charts_created,

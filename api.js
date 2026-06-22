@@ -1,25 +1,39 @@
-const LOCAL_API_URL = "http://127.0.0.1:8000";
-const HOSTED_API_URL = "https://conversion-studio-five.vercel.app";
+// Conversion Studio API routing
+// Standard conversion runs in Vercel. Excel COM live-connect runs on this Windows PC.
 
-const IS_LOCAL_WINDOWS_MODE =
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1";
+const CLOUD_API_URL = "https://conversion-studio-five.vercel.app";
+const LOCAL_AGENT_API_URL = "http://127.0.0.1:8000";
 
-const API_BASE = IS_LOCAL_WINDOWS_MODE
-    ? LOCAL_API_URL
-    : HOSTED_API_URL;
+const currentHost = window.location.hostname;
+const isLocalPage = currentHost === "localhost" || currentHost === "127.0.0.1";
 
-function apiURL(path) {
-    const normalizedPath = path.startsWith("/")
-        ? path
-        : `/${path}`;
-
-    return `${API_BASE}${normalizedPath}`;
+function normalizeBase(value) {
+  return String(value || "").trim().replace(/\/+$/, "");
 }
 
-// Export to global window namespace
-window.LOCAL_API_URL = LOCAL_API_URL;
-window.HOSTED_API_URL = HOSTED_API_URL;
-window.IS_LOCAL_WINDOWS_MODE = IS_LOCAL_WINDOWS_MODE;
-window.API_BASE = API_BASE;
+function normalizePath(path) {
+  const value = String(path || "");
+  return value.startsWith("/") ? value : `/${value}`;
+}
+
+const STANDARD_API_BASE = normalizeBase(isLocalPage ? LOCAL_AGENT_API_URL : CLOUD_API_URL);
+const LIVE_API_BASE = normalizeBase(LOCAL_AGENT_API_URL);
+
+function apiURL(path) {
+  return `${STANDARD_API_BASE}${normalizePath(path)}`;
+}
+
+function liveApiURL(path) {
+  return `${LIVE_API_BASE}${normalizePath(path)}`;
+}
+
+window.CLOUD_API_URL = normalizeBase(CLOUD_API_URL);
+window.LOCAL_AGENT_API_URL = normalizeBase(LOCAL_AGENT_API_URL);
+window.API_BASE = STANDARD_API_BASE;
+window.LIVE_API_BASE = LIVE_API_BASE;
 window.apiURL = apiURL;
+window.liveApiURL = liveApiURL;
+window.IS_LOCAL_WINDOWS_MODE = isLocalPage;
+
+console.info("[Conversion Studio] Standard API:", STANDARD_API_BASE);
+console.info("[Conversion Studio] Windows agent:", LIVE_API_BASE);
